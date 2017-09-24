@@ -27,5 +27,7 @@ _start:
 
 .text
 
+/*testing*/
+
 bootasm:
 
