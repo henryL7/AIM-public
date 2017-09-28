@@ -28,4 +28,32 @@
  */
 
 ENTRY(_start)
+SECTIONS{
+    .section.entry 0x7c00 : AT(0x7c00)
+    {
+        *(.section.entry)
+    }
+        .text ALIGN(16):
+    {
+        *(.text)
+    }
+    .rodata ALIGN(16):
+    {
+        *(.rodata)
+    }
+    .data ALIGN(16):
+    {
+        *(.data)
+    }
+    .bss ALIGN(16):
+    {
+        *(.bss)
+    }
+    mbr = 0 ;
+    /DISCARD/ :
+    {
+        *(.eh_frame)
+        *(.comment)
+    }
+}
 

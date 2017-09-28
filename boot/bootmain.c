@@ -24,9 +24,62 @@
 #include <aim/boot.h>
 #include <elf.h>
 
+#define KERN_LBA
+inline void read_from_disk(uint32_t base,uint32_t offset,uint16_t length,char *address) 
+{
+	uint32_t pageoff;
+	pageoff=offset/PAGESIZE;
+	uint32_t byteoff;
+	byteoff=offset%PAGESIZE;
+	uint8_t page_num;
+	page_num=(uint8_t)(((length+(uint16_t)byteoff)/PAGESIZE)+!!((length+(uint16_t)byteoff)%PAGESIZE));
+	void* buffer;
+	read_disk(page_num,lba_number+pageoff,buffer);
+	address=(char*)&buffer[byteoff];
+	return;
+}
+
+inline void program_loader(elf32_phdr_t *elfhead)
+{
+   if(elfhead->p_type!=PT_LOAD)
+   return;
+   char* location=(char*)elfhead->p_vaddr;
+   read_from_disk(KERN_LBA,elfhead->p_offset,(uint16_t)elfhead->p_filesz,location);
+   uint32_t bss_size=elfhead->p_memsz-elfhead->p_filesz;
+   uint32_t padding=(elfhead->p_vaddr+elfhead->p_filesz)%elfhead->p_align;
+   if(padding!=0)
+   bss_size+=elfhead->p_align-padding;
+   location=(char*)((uint32_t location)+elfhead->p_filesz);
+   uint32_t i=0;
+   for(i=0;i<)bss_size;i++)
+   {
+	   &location=0;
+	   location++;
+   }
+   return;
+}
 __noreturn
 void bootmain(void)
 {
+	char readin[];
+	read_from_disk(KERN_LBA,0,PAGESIZE,readin);
+	elf32hdr_t *elf32;
+	elf32=(elf32hdr_t *)readin;
+	Elf32_Off prog_off=elf32->e_phoff;
+	char buffer[];
+	read_from_disk(KERN_LBA,elf32->e_phoff,elf32->e_phnum*elf32->e_phentsize,buffer);
+	elf32_phdr_t *elfhead;
+	elfhead=(elf32_phdr_t *)buffer;
+	unsigned int i=0;
+	for(i=0;i<(unsigned int)elf32->e_phnum;i++)
+	{
+		program_loader(elfhead);
+		elfhead++;
+	}
+	__asm__ __volitile__("
+       jmp *(%%edx)
+	"::"%edx"(elf32->e_entry):"memory"
+	)
 	while (1);
 }
 
