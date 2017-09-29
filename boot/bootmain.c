@@ -53,16 +53,16 @@ static void read_from_disk(uint32_t base,uint32_t offset,uint32_t length,char *a
 		if(i==0)
 		{
 			if(i==page_num-1)
-			   target=bs_copy(buffer,address,byteoff,last_length);
+			   address=bs_copy(buffer,address,byteoff,last_length);
 			else
-			   target=bs_copy(buffer,address,byteoff,PAGESIZE);
+			   address=bs_copy(buffer,address,byteoff,PAGESIZE);
 		}
 		else
 		{
 			if(i==page_num-1)
-			target=bs_copy(buffer,address,0,last_length);
+			address=bs_copy(buffer,address,0,last_length);
 		    else
-			target=bs_copy(buffer,address,0,PAGESIZE);
+			address=bs_copy(buffer,address,0,PAGESIZE);
 		}
 	}
 	return;
