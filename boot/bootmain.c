@@ -26,15 +26,45 @@
 
 #define BUFFER_SIZE 0x200
 uint32_t KERN_LBA=0;
-static void read_from_disk(uint32_t base,uint32_t offset,uint16_t length,char *address) 
+static char* bs_copy(char*src,char*target,uint32_t start,uint32_t end)
 {
+	uint32_t i=start;
+	for(;i<end;i++)
+	{
+		*target=src[i];
+		target++;
+	}
+	return target;
+}
+static void read_from_disk(uint32_t base,uint32_t offset,uint32_t length,char *address) 
+{
+	char buffer[BUFFER_SIZE];
 	uint32_t pageoff;
 	pageoff=offset/PAGESIZE;
 	uint32_t byteoff;
 	byteoff=offset%PAGESIZE;
-	uint8_t page_num;
-	page_num=(uint8_t)(((length+(uint16_t)byteoff)/PAGESIZE)+!!((length+(uint16_t)byteoff)%PAGESIZE));
-	read_disk(page_num,	base+pageoff,byteoff,(void*)address);
+	uint32_t page_num;
+	page_num=(length+byteoff)/PAGESIZE+!!((length+byteoff)%PAGESIZE);
+	uint32_t last_length;
+	last_length=(length+byteoff)%PAGESIZE;
+	for(uint32_t i=0;i<page_num;i++)
+	{
+		read_disk(1,base+pageoff,(void*)buffer);
+		if(i==0)
+		{
+			if(i==page_num-1)
+			   target=bs_copy(buffer,address,byteoff,last_length);
+			else
+			   target=bs_copy(buffer,address,byteoff,PAGESIZE);
+		}
+		else
+		{
+			if(i==page_num-1)
+			target=bs_copy(buffer,address,0,last_length);
+		    else
+			target=bs_copy(buffer,address,0,PAGESIZE);
+		}
+	}
 	return;
 }
 
@@ -43,7 +73,7 @@ static void program_loader(elf32_phdr_t *elfhead)
    if(elfhead->p_type!=PT_LOAD)
    return;
    char* location=(char*)elfhead->p_vaddr;
-   read_from_disk(KERN_LBA,elfhead->p_offset,(uint16_t)elfhead->p_filesz,location);
+   read_from_disk(KERN_LBA,elfhead->p_offset,elfhead->p_filesz,location);
    uint32_t bss_size=elfhead->p_memsz-elfhead->p_filesz;
    uint32_t padding=(elfhead->p_vaddr+elfhead->p_filesz)%elfhead->p_align;
    if(padding!=0)
@@ -73,7 +103,7 @@ void bootmain(void)
 	elf32hdr_t *elf32;
 	elf32=(elf32hdr_t *)readin;
 	char buffer[BUFFER_SIZE];
-	read_from_disk(KERN_LBA,elf32->e_phoff,(uint16_t)(elf32->e_phnum*elf32->e_phentsize),buffer);
+	read_from_disk(KERN_LBA,elf32->e_phoff,(uint32_t)elf32->e_phnum*(uint32_t)elf32->e_phentsize,buffer);
 	elf32_phdr_t *elfhead;
 	elfhead=(elf32_phdr_t *)buffer;
 	unsigned int i=0;
