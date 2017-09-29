@@ -27,22 +27,22 @@ typedef struct elf32_phdr	elf_phdr;
 static inline
 void read_disk(uint8_t quantities,uint32_t lba_number,void *address)
 {
-    __asm__ _volatile_("\
-    outb $0x1f2
-    movl %%ebx,%%eax
-    outl $0x1f3
-    movb $0x20,%%al
-    outb $0x1f7
-    .waits:
-    inb $0x1f7
-    andb $0x88,%%al
-    cmpb $0x08,%%al
-    jnz .waits
-    .readw:
-    inw $0x1f0
-    movw %%ax,(%%edx)
-    addl $0x2,%%edx
-    loop .readw
+    __asm__ __volatile__ ("\
+    outb $0x1f2\
+    movl %%ebx,%%eax\
+    outl $0x1f3\
+    movb $0x20,%%al\
+    outb $0x1f7\
+    .waits:\
+    inb $0x1f7\
+    andb $0x88,%%al\
+    cmpb $0x08,%%al\
+    jnz .waits\
+    .readw:\
+    inw $0x1f0\
+    movw %%ax,(%%edx)\
+    addl $0x2,%%edx\
+    loop .readw\
     "::"a"(quantities),"b"(lba_number),"edx"(address),"cx"(quantities*PAGESIZE/2):"memory"
     );
     return;
