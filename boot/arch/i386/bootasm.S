@@ -29,11 +29,18 @@ cli ;disable interrupts
 
 movw %cs,%ax
 movw %ax,%ss     ; set up stack-segment register
-xor %esp,%esp
-xor %ebp,%ebp
+xor %sp,%sp
+xor %bp,%bp
 movw $0x7c00,%sp ; bios loading address
 movw %sp,%bp    ; set up stack
 
+movw bss_start,%bx
+movw bss_end,%dx
+.clearbss
+movw $0x0,%ax
+addw $0x2,%ax
+cmpw %ax,%bx
+jng .clearbss
 movw $0x0,%ax
 movw %ax,%ds
 movw $0x7e00,%bx     ; get GDT's logic address
