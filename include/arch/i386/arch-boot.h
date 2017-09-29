@@ -43,7 +43,7 @@ void read_disk(uint8_t quantities,uint32_t lba_number,void *address)
     movw %%ax,(%%edx)\
     addl $0x2,%%edx\
     loop .readw\
-    "::"a"(quantities),"b"(lba_number),"edx"(address),"cx"(quantities*PAGESIZE/2):"memory"
+    "::"a"(quantities),"b"(lba_number),"edx"(address),"cx"(quantities*PAGESIZE/2):"memory"\
     );
     return;
 }
