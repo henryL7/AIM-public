@@ -24,6 +24,7 @@
 #include <aim/boot.h>
 #include <elf.h>
 
+#define BUFFER_SIZE 0x200
 uint32_t KERN_LBA=0;
 static void read_from_disk(uint32_t base,uint32_t offset,uint16_t length,char *address) 
 {
@@ -33,13 +34,11 @@ static void read_from_disk(uint32_t base,uint32_t offset,uint16_t length,char *a
 	byteoff=offset%PAGESIZE;
 	uint8_t page_num;
 	page_num=(uint8_t)(((length+(uint16_t)byteoff)/PAGESIZE)+!!((length+(uint16_t)byteoff)%PAGESIZE));
-	char* buffer;
-	read_disk(page_num,	base+pageoff,(void*)buffer);
-	address=&(buffer[byteoff]);
+	read_disk(page_num,	base+pageoff,byteoff,(void*)address);
 	return;
 }
 
-inline void program_loader(elf32_phdr_t *elfhead)
+static void program_loader(elf32_phdr_t *elfhead)
 {
    if(elfhead->p_type!=PT_LOAD)
    return;
@@ -58,11 +57,6 @@ inline void program_loader(elf32_phdr_t *elfhead)
    }
    return;
 }
-void jump_to_main()
-{
-	__asm__ __volitile__ ("jmp *(%%edx)"::"%edx"(elf32->e_entry):"memory");
-	return;
-}
 __noreturn
 void bootmain(void)
 {
@@ -74,11 +68,11 @@ void bootmain(void)
 	cylinder=cylinder&mask;
 	cylinder=cylinder|(((uint32_t)(mbr[2]))<<2);
 	KERN_LBA=head*63*255+cylinder*63+sector-1;
-	char *readin;
+	char readin[BUFFER_SIZE];
 	read_from_disk(KERN_LBA,0,PAGESIZE,readin);
 	elf32hdr_t *elf32;
 	elf32=(elf32hdr_t *)readin;
-	char *buffer;
+	char buffer[BUFFER_SIZE];
 	read_from_disk(KERN_LBA,elf32->e_phoff,(uint16_t)(elf32->e_phnum*elf32->e_phentsize),buffer);
 	elf32_phdr_t *elfhead;
 	elfhead=(elf32_phdr_t *)buffer;
@@ -88,7 +82,7 @@ void bootmain(void)
 		program_loader(elfhead);
 		elfhead++;
 	}
-	jump_to_main();
+	__asm__ __volatile__ ("jmp *(%%edx)"::"d"(elf32->e_entry):"memory");
 	while (1);
 }
 
