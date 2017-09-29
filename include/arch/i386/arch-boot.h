@@ -27,7 +27,7 @@ typedef struct elf32_phdr	elf_phdr;
 static inline
 void read_disk(uint8_t quantities,uint32_t lba_number,void *address)
 {
-    _asm_ _volatile_("
+    __asm__ _volatile_("\
     outb $0x1f2
     movl %%ebx,%%eax
     outl $0x1f3
