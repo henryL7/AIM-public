@@ -58,6 +58,11 @@ inline void program_loader(elf32_phdr_t *elfhead)
    }
    return;
 }
+void jump_to_main()
+{
+	__asm__ __volitile__ ("jmp *(%%edx)"::"%edx"(elf32->e_entry):"memory");
+	return;
+}
 __noreturn
 void bootmain(void)
 {
@@ -83,10 +88,7 @@ void bootmain(void)
 		program_loader(elfhead);
 		elfhead++;
 	}
-	__asm__ __volitile__("\
-       jmp *(%%edx)\
-	"::"%edx"(elf32->e_entry):"memory"\
-	);
+	jump_to_main();
 	while (1);
 }
 
