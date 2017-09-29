@@ -23,6 +23,8 @@
 .section .entry
 
 .globl _start
+.globl bss_start
+.globl bss_end
 _start:
 
 cli /*disable interrupts*/
@@ -37,10 +39,10 @@ movw %sp,%bp    /*set up stack*/
 movw bss_start,%bx   /*clear bss*/
 movw bss_end,%dx
 .clearbss:
-movw $0x0,%ax
-addw $0x2,%ax
-cmpw %ax,%bx
-jng .clearbss
+movw $0x0,(%bx)
+addw $0x2,%bx
+cmpw %bx,%dx
+jne .clearbss
 
 movw $0x0,%ax
 movw %ax,%ds
