@@ -58,11 +58,11 @@ movl  $0x7e00,0x18(%bx)
 lgdt  0x16(%bx)      /*load gdtr*/
 
 inb $0x92
-or %al,$0x2
+orb $0x2,%al
 outb $0x92           /* open A20*/
 
 movl %cr0,%eax
-or %eax,$0x1
+orl $0x1,%eax
 movl %eax,%cr0       /* set PE*/
 
 
