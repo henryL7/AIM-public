@@ -25,7 +25,7 @@
 .globl _start
 _start:
 
-cli ;disable interrupts
+cli /*disable interrupts*/
 
 movw %cs,%ax
 movw %ax,%ss    /*set up stack-segment register*/
@@ -36,7 +36,7 @@ movw %sp,%bp    /*set up stack*/
 
 movw bss_start,%bx   /*clear bss*/
 movw bss_end,%dx
-.clearbss
+.clearbss:
 movw $0x0,%ax
 addw $0x2,%ax
 cmpw %ax,%bx
@@ -58,7 +58,7 @@ movl  $0x7e00,0x18(%bx)
 lgdt  0x16(%bx)      /*load gdtr*/
 
 inb $0x92
-or %al,0x2
+or %al,$0x2
 outb $0x92           /* open A20*/
 
 movl %cr0,%eax
