@@ -33,9 +33,9 @@ inline void read_from_disk(uint32_t base,uint32_t offset,uint16_t length,char *a
 	byteoff=offset%PAGESIZE;
 	uint8_t page_num;
 	page_num=(uint8_t)(((length+(uint16_t)byteoff)/PAGESIZE)+!!((length+(uint16_t)byteoff)%PAGESIZE));
-	void* buffer;
-	read_disk(page_num,lba_number+pageoff,buffer);
-	address=(char*)&buffer[byteoff];
+	char* buffer;
+	read_disk(page_num,	base+pageoff,(void*)buffer);
+	address=&(buffer[byteoff]);
 	return;
 }
 
@@ -49,11 +49,11 @@ inline void program_loader(elf32_phdr_t *elfhead)
    uint32_t padding=(elfhead->p_vaddr+elfhead->p_filesz)%elfhead->p_align;
    if(padding!=0)
    bss_size+=elfhead->p_align-padding;
-   location=(char*)((uint32_t location)+elfhead->p_filesz);
+   location=(char*)((uint32_t) location+elfhead->p_filesz);
    uint32_t i=0;
-   for(i=0;i<)bss_size;i++)
+   for(i=0;i<bss_size;i++)
    {
-	   &location=0;
+	   (&location)=0;
 	   location++;
    }
    return;
@@ -61,24 +61,23 @@ inline void program_loader(elf32_phdr_t *elfhead)
 __noreturn
 void bootmain(void)
 {
-	int i=0;
-	uint32_t head=uint32_t(&mbr);
+	uint32_t head=(uint32_t)(&mbr);
 	mbr++;
-	uint32_t sector=uint32_t(&mbr);
+	uint32_t sector=(uint32_t)(&mbr);
 	sector=sector>>2;
-	uint32_t cylinder=uint32_t(&mbr);
+	uint32_t cylinder=(uint32_t)(&mbr);
 	uint32_t mask=63;
 	cylinder=cylinder&mask;
 	mbr++;
-	cylinder=cylinder|((uint32_t(&mbr))<<2);
+	cylinder=cylinder|(((uint32_t)(&mbr))<<2);
 	KERN_LBA=head*63*255+cylinder*63+sector-1;
-	char readin[];
+	char *readin;
 	read_from_disk(KERN_LBA,0,PAGESIZE,readin);
 	elf32hdr_t *elf32;
 	elf32=(elf32hdr_t *)readin;
 	Elf32_Off prog_off=elf32->e_phoff;
-	char buffer[];
-	read_from_disk(KERN_LBA,elf32->e_phoff,elf32->e_phnum*elf32->e_phentsize,buffer);
+	char *buffer;
+	read_from_disk(KERN_LBA,elf32->e_phoff,(uint16_t)(elf32->e_phnum*elf32->e_phentsize),buffer);
 	elf32_phdr_t *elfhead;
 	elfhead=(elf32_phdr_t *)buffer;
 	unsigned int i=0;
@@ -87,10 +86,10 @@ void bootmain(void)
 		program_loader(elfhead);
 		elfhead++;
 	}
-	__asm__ __volitile__("
-       jmp *(%%edx)
-	"::"%edx"(elf32->e_entry):"memory"
-	)
+	__asm__ __volitile__("\
+       jmp *(%%edx)\
+	"::"%edx"(elf32->e_entry):"memory"\
+	);
 	while (1);
 }
 
