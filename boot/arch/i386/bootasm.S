@@ -24,7 +24,7 @@
 
 .globl _start
 _start:
-;[bits 16] ; suppose running in real-address mode
+
 cli ;disable interrupts
 
 movw %cs,%ax
@@ -41,6 +41,7 @@ movw $0x0,%ax
 addw $0x2,%ax
 cmpw %ax,%bx
 jng .clearbss
+
 movw $0x0,%ax
 movw %ax,%ds
 movw $0x7e00,%bx     ; get GDT's logic address
