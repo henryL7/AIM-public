@@ -44,6 +44,10 @@ addw $0x2,%bx
 cmpw %bx,%dx
 jne .clearbss
 
+inb $0x92
+orb $0x2,%al
+outb $0x92           /* open A20*/
+
 movw $0x0,%ax
 movw %ax,%ds
 movw $0x7e00,%bx     /* get GDT's logic address*/
@@ -52,23 +56,37 @@ movl  $0x0,(%bx)
 movl  $0x0,0x4(%bx)  /*create #0 discripter */
 
 movl  $0xffff,0x8(%bx)
-movl  $0xcf9a00,0x12(%bx)  /* create #1 discripter, flat mode is chosen here, maximum privilege given */
+movl  $0xcf9800,0x12(%bx)  /* create discripter for code, flat mode is chosen here, maximum privilege given */
 
-movw  $0x10,0x16(%bx)    /*set gdtr*/
-movl  $0x7e00,0x18(%bx)
+movl  $0xffff,0x16(%bx)
+movl  $0xcf9200,0x20(%bx)  /* create discripter for data, flat mode is chosen here, maximum privilege given */
 
-lgdt  0x16(%bx)      /*load gdtr*/
+movw  $0x18,0x24(%bx)    /*set gdtr*/
+movl  $0x7e00,0x26(%bx)
 
-inb $0x92
-orb $0x2,%al
-outb $0x92           /* open A20*/
+lgdt  0x24(%bx)      /*load gdtr*/
+
+movw $0x1,0x30(%bx)
+xor %ecx,%ecx
+movw bootasm,%cx
+addw $0x7c00,%cx
+movl %ecx,0x32(%bx)
+movl $0x7e30,%ecx  /*store longjump destination*/
+
+
+movw  $0x2,%ax       /*set segement register for data*/
+movw  %ax,%ds
+movw  %ax,%es
+movw  %ax,%fs
+movw  %ax,%gs
+movw  %ax,%ss
+
 
 movl %cr0,%eax
 orl $0x1,%eax
 movl %eax,%cr0       /* set PE*/
 
-
-jmp bootasm
+ljmp *(%ecx)
 
 .text
 
