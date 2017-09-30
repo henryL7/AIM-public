@@ -24,93 +24,75 @@
 #include <aim/boot.h>
 #include <elf.h>
 
-#define BUFFER_SIZE 0x1
-uint32_t KERN_LBA=0;
-static char* bs_copy(char*src,char*target,uint32_t start,uint32_t end)
+#define BUFFER_SIZE 0x200
+uint32_t KERN_LBA;
+elf32_phdr_t *elfhead;
+elf32hdr_t *elf32;
+char buffer[BUFFER_SIZE];
+uint8_t* temp;
+inline static void read_block(uint32_t lba_number)
 {
-	uint32_t i=start;
-	for(;i<end;i++)
-	{
-		*target=src[i];
-		target++;
-	}
-	return target;
+	uint16_t* address=(uint16_t*)buffer;
+	uint16_t port=0x1f2;
+	myoutb(port++,1);
+	temp=(uint8_t*)&(lba_number);
+	int i;
+	for(i=0;i<4;i++,port++)
+		myoutb(port,temp[i]);
+	myoutb(port,0x20);
+	while(!(myinb(port)&0x08));
+	for(i=0;i<256;i++,address++)
+		*address=myinw(0x1f0);
+	return;
 }
-static void read_from_disk(uint32_t base,uint32_t offset,uint32_t length,char *address) 
+static void read_disk(uint32_t offset,uint32_t length,char *address) 
 {
-	char buffer[BUFFER_SIZE];
 	uint32_t pageoff;
 	pageoff=offset/PAGESIZE;
 	uint32_t byteoff;
 	byteoff=offset%PAGESIZE;
-	uint32_t page_num;
-	page_num=(length+byteoff)/PAGESIZE+!!((length+byteoff)%PAGESIZE);
 	uint32_t last_length;
 	last_length=(length+byteoff)%PAGESIZE;
+	uint32_t page_num;
+	page_num=(length+byteoff)/PAGESIZE+(last_length!=0);
+	pageoff+=KERN_LBA;
+	uint32_t l;
+	uint32_t j;
 	for(uint32_t i=0;i<page_num;i++)
 	{
-		read_disk(1,base+pageoff,(void*)buffer);
-		if(i==0)
-		{
-			if(i==page_num-1)
-			   address=bs_copy(buffer,address,byteoff,last_length);
-			else
-			   address=bs_copy(buffer,address,byteoff,PAGESIZE);
-		}
-		else
-		{
-			if(i==page_num-1)
-			address=bs_copy(buffer,address,0,last_length);
-		    else
-			address=bs_copy(buffer,address,0,PAGESIZE);
-		}
+		read_block(pageoff);
+		j=(i==0?byteoff:0);
+		l=(i==page_num-1?last_length:PAGESIZE);
+		for(;j<l;j++,address++)
+			*address=buffer[j];
 	}
 	return;
 }
 
-static void program_loader(elf32_phdr_t *elfhead)
-{
-   if(elfhead->p_type!=PT_LOAD)
-   return;
-   char* location=(char*)elfhead->p_vaddr;
-   read_from_disk(KERN_LBA,elfhead->p_offset,elfhead->p_filesz,location);
-   uint32_t bss_size=elfhead->p_memsz-elfhead->p_filesz;
-   uint32_t padding=(elfhead->p_vaddr+elfhead->p_filesz)%elfhead->p_align;
-   if(padding!=0)
-   bss_size+=elfhead->p_align-padding;
-   location=(char*)((uint32_t) location+elfhead->p_filesz);
-   uint32_t i=0;
-   for(i=0;i<bss_size;i++)
-   {
-	   (*location)=0;
-	   location++;
-   }
-   return;
-}
 __noreturn
 void bootmain(void)
 {
-	uint32_t head=(uint32_t)(mbr[0]);
-	uint32_t sector=(uint32_t)(mbr[1]);
-	sector=sector>>2;
-	uint32_t cylinder=(uint32_t)(mbr[1]);
-	uint32_t mask=63;
-	cylinder=cylinder&mask;
-	cylinder=cylinder|(((uint32_t)(mbr[2]))<<2);
-	KERN_LBA=head*63*255+cylinder*63+sector-1;
-	char readin[BUFFER_SIZE];
-	read_from_disk(KERN_LBA,0,PAGESIZE,readin);
-	elf32hdr_t *elf32;
-	elf32=(elf32hdr_t *)readin;
-	char buffer[BUFFER_SIZE];
-	read_from_disk(KERN_LBA,elf32->e_phoff,(uint32_t)elf32->e_phnum*(uint32_t)elf32->e_phentsize,buffer);
-	elf32_phdr_t *elfhead;
-	elfhead=(elf32_phdr_t *)buffer;
+	KERN_LBA=(uint32_t)mbr;
+	read_disk(0,PAGESIZE,(char*)elf32);
+	read_disk(elf32->e_phoff,(uint32_t)elf32->e_phnum*(uint32_t)elf32->e_phentsize,(char*)elfhead);
 	unsigned int i=0;
-	for(i=0;i<(unsigned int)elf32->e_phnum;i++)
+	for(i=0;i<(unsigned int)elf32->e_phnum;i++,elfhead++)
 	{
-		program_loader(elfhead);
-		elfhead++;
+		if(elfhead->p_type!=PT_LOAD)
+		continue;
+		char* location=(char*)elfhead->p_vaddr;
+		read_disk(elfhead->p_offset,elfhead->p_filesz,location);
+		uint32_t bss_size=elfhead->p_memsz-elfhead->p_filesz;
+		uint32_t padding=(elfhead->p_vaddr+elfhead->p_filesz)%elfhead->p_align;
+		if(padding!=0)
+		bss_size+=elfhead->p_align-padding;
+		location=(char*)((uint32_t) location+elfhead->p_filesz);
+		uint32_t i=0;
+		for(i=0;i<bss_size;i++)
+		{
+			(*location)=0;
+			location++;
+		}
 	}
 	__asm__ __volatile__ ("jmp *(%%edx)"::"d"(elf32->e_entry):"memory");
 	while (1);

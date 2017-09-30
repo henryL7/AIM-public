@@ -29,9 +29,9 @@
 
 ENTRY(_start)
 SECTIONS{
-    .section.entry 0x7c00 : AT(0x7c00)
+      .entry 0x7c00 : AT(0x7c00)
     {
-        *(.section.entry)
+        *(.entry)
     }
         .text ALIGN(16):
     {
@@ -51,7 +51,7 @@ SECTIONS{
         *(.bss)
     }
     bss_end = . ;
-    mbr = 462 ;
+    mbr = 474 ;
     /DISCARD/ :
     {
         *(.eh_frame)

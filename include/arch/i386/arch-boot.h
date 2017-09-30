@@ -23,7 +23,7 @@
 #define PAGESIZE 512
 typedef struct elf32hdr		elf_hdr;
 typedef struct elf32_phdr	elf_phdr;
-
+/*
 static inline
 void read_disk(uint8_t quantities,uint32_t lba_number,void *address)
 {
@@ -65,6 +65,34 @@ void read_disk(uint8_t quantities,uint32_t lba_number,void *address)
     );
     return;
 }
+*/
+static 
+uint8_t myinb(uint16_t port)
+{
+	uint8_t result=0;
+	__asm__ __volatile__ ("inb (%%dx)":"=a"(result):"d"(port):"memory");
+	return result;
+}
+
+static 
+uint16_t myinw(uint16_t port)
+{
+	uint16_t result=0;
+	__asm__ __volatile__ ("inw (%%dx)":"=a"(result):"d"(port):"memory");
+	return result;
+}
+
+static 
+void myoutb(uint16_t port, uint8_t data)
+{
+    __asm__ __volatile__ ("inb (%%dx)"::"a"(data),"dx"(port):"memory");
+}
+
+/*static 
+void myoutw(uint16_t port, uint8_t data)
+{
+    __asm__ __volatile__ ("inb (%%dx)"::"a"(data),"dx"(port):"memory");
+}*/
 #endif /* !__ASSEMBLER__ */
 
 #endif /* !_ARCH_BOOT_H */

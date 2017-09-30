@@ -31,8 +31,6 @@ cli /*disable interrupts*/
 
 movw %cs,%ax
 movw %ax,%ss    /*set up stack-segment register*/
-xor %sp,%sp
-xor %bp,%bp
 movw $0x7c00,%sp  /*bios loading address*/
 movw %sp,%bp    /*set up stack*/
 
@@ -48,8 +46,6 @@ inb $0x92
 orb $0x2,%al
 outb $0x92           /* open A20*/
 
-movw $0x0,%ax
-movw %ax,%ds
 movw $0x7e00,%bx     /* get GDT's logic address*/
 
 movl  $0x0,(%bx)
@@ -76,9 +72,6 @@ movl $0x7e30,%ecx  /*store longjump destination*/
 
 movw  $0x2,%ax       /*set segement register for data*/
 movw  %ax,%ds
-movw  %ax,%es
-movw  %ax,%fs
-movw  %ax,%gs
 movw  %ax,%ss
 
 
