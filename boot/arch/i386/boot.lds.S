@@ -45,11 +45,13 @@ SECTIONS{
     {
         *(.data)
     }
+    bss_start = . ;
     .bss ALIGN(16):
     {
         *(.bss)
     }
-    mbr = 0 ;
+    bss_end = . ;
+    mbr = 462 ;
     /DISCARD/ :
     {
         *(.eh_frame)

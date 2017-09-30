@@ -24,7 +24,7 @@
 #include <aim/boot.h>
 #include <elf.h>
 
-#define BUFFER_SIZE 0x200
+#define BUFFER_SIZE 0x1
 uint32_t KERN_LBA=0;
 static char* bs_copy(char*src,char*target,uint32_t start,uint32_t end)
 {
