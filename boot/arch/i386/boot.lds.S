@@ -29,13 +29,12 @@
 
 ENTRY(_start)
 SECTIONS{
-      .entry 0x7c00 : AT(0x7c00)
+      .text 0x7c00 : AT ( 0x7c00 )
     {
-        *(.entry)
-    }
-        .text ALIGN(16):
-    {
-        *(.text)
+        *(.entry) ;
+        . = 0x400 ;
+         *(.text) ;
+
     }
     .rodata ALIGN(16):
     {
@@ -45,13 +44,14 @@ SECTIONS{
     {
         *(.data)
     }
-    bss_start = . ;
+    . = 0x8600 ;
+    bss_start = 0x8600 ;
     .bss ALIGN(16):
     {
         *(.bss)
     }
     bss_end = . ;
-    mbr = 474 ;
+    mbr = 32218 ;
     /DISCARD/ :
     {
         *(.eh_frame)
