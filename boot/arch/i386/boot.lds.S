@@ -51,7 +51,7 @@ SECTIONS{
         *(.bss)
     }
     bss_end = . ;
-    mbr = 32218 ;
+    mbr = 0x7dbe ;
     /DISCARD/ :
     {
         *(.eh_frame)

@@ -27,5 +27,31 @@
  * linker script.
  */
 
-ENTRY(_start)
+ENTRY(master_early_entry)
+SECTIONS{
+    .text 0x30000 : AT (0x30000)
+    {
+        * ( .text ) ;
+    }
+    .rodata ALIGN(16):
+    {
+        *(.rodata)
+    }
+    .data ALIGN(16):
+    {
+        *(.data)
+    }
+    . = ALIGN (16) ;
+    bss_start = . ;
+    .bss :
+    {
+        *(.bss)
+    }
+    bss_end = . ;
+    /DISCARD/ :
+    {
+        *(.eh_frame)
+        *(.comment)
+    }
+}
 

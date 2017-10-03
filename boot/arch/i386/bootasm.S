@@ -58,12 +58,12 @@ movl  $0x0,(%bx)
 movl  $0x0,0x4(%bx)  /*create #0 discripter */
 
 movl  $0xffff,0x8(%bx)
-movl  $0xcf9800,0xc(%bx)  /* create discripter for code, flat mode is chosen here, maximum privilege given */
+movl  $0xcf9a00,0xc(%bx)  /* create discripter for code, flat mode is chosen here, maximum privilege given */
 
 movl  $0xffff,0x10(%bx)
 movl  $0xcf9200,0x14(%bx)  /* create discripter for data, flat mode is chosen here, maximum privilege given */
 
-movw  $0x17,0x18(%bx)    /*set gdtr*/
+movw  $0x18,0x18(%bx)    /*set gdtr*/
 movl  $0x7f00,0x1a(%bx)
 
 lgdtl  0x7f18     /*load gdtr*/
@@ -103,11 +103,6 @@ cmpw $0x0,%bx
 jnz .readw
 
 
-movw  $0x10,%ax       /*set segement register for data*/
-movw  %ax,%ds
-movw  %ax,%ss
-
-
 movl %cr0,%eax
 orl $0x1,%eax
 movl %eax,%cr0       /* set PE*/
@@ -119,6 +114,12 @@ ljmpl $0x8,$bootasm
 .text
 
 bootasm:
+
+movw  $0x10,%ax       /*set segement register for data*/
+movw  %ax,%ds
+movw  %ax,%ss
+movw  %ax,%es
+movzbl 0x7dd7,%eax
 call bootmain
 jmp bootasm
 

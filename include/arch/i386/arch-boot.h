@@ -85,7 +85,7 @@ uint16_t myinw(uint16_t port)
 static 
 void myoutb(uint16_t port, uint8_t data)
 {
-    __asm__ __volatile__ ("inb (%%dx)"::"a"(data),"dx"(port):"memory");
+    __asm__ __volatile__ ("outb (%%dx)"::"a"(data),"dx"(port):"memory");
 }
 
 /*static 
