@@ -29,7 +29,7 @@
 
 ENTRY(master_early_entry)
 SECTIONS{
-    .text 0x30000 : AT (0x30000)
+    .text 0x30000000 : AT (0x30000000)
     {
         * ( .text ) ;
     }

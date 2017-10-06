@@ -59,7 +59,9 @@ jmp clearbss
 L1:
 
 call master_early_init
+
+
 .data
 
 .local stack_addr 
-stack_addr = 0x7c00
+stack_addr = 0x3f000000

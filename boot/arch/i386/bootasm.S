@@ -42,12 +42,17 @@ movw %sp,%bp    /*set up stack*/
 
 movw $bss_start,%bx   /*clear bss*/
 movw $bss_end,%dx
-clearbss:
-movw $0x0,(%bx)
-addw $0x2,%bx
-cmpw %bx,%dx
-jne clearbss
 
+clearbss:
+
+movb $0x0,(%bx)
+cmpw %bx,%dx
+je L1
+incw %bx
+jmp clearbss
+
+
+L1:
 inb $0x92
 orb $0x2,%al
 outb $0x92           /* open A20*/
@@ -75,7 +80,7 @@ movw $0x1f2,%dx
 outb (%dx)        /*read one block*/
 incw %dx
 incb %al
-outb (%dx)        /*read 2# block*/
+outb (%dx)        /*read 1# block, using CHS mode*/
 xorb %al,%al
 incw %dx
 outb (%dx)
@@ -119,7 +124,6 @@ movw  $0x10,%ax       /*set segement register for data*/
 movw  %ax,%ds
 movw  %ax,%ss
 movw  %ax,%es
-movzbl 0x7dd7,%eax
 call bootmain
 jmp bootasm
 
