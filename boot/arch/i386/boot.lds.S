@@ -32,7 +32,7 @@ SECTIONS{
       .text 0x7c00 : AT ( 0x7c00 )
     {
         *(.entry) ;
-        . = 0x400 ;
+        . = 0x400 ;    /*leave room for the mbr table*/
          *(.text) ;
 
     }

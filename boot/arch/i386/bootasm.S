@@ -74,7 +74,7 @@ movl  $0x7f00,0x1a(%bx)
 lgdtl  0x7f18     /*load gdtr*/
 
 
-
+/*readin the rest of code of the bootloader*/
 movb $0x1,%al
 movw $0x1f2,%dx
 outb (%dx)        /*read one block*/
@@ -98,7 +98,7 @@ cmpb $0x08,%al
 jnz .waits
 movw $0x100,%bx
 movw $0x1f0,%dx
-movw $0x8000,%di  /*relocation later*/
+movw $0x8000,%di  /*address for the start of the rest of later, in a hardcode way*/
 .readw:
 inw (%dx)
 movw %ax,(%di)

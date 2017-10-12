@@ -46,15 +46,15 @@ panic:
 		"pop %eax;"
 		"iret;"
 		"L2:;"
-		"movl $0x3e000230,%edx;"
+		"movl $0x3e000380,%edx;"
 		"movl $int_0x70,%eax;"
-		"movw %ax,0xc(%edx);"
-		"shrl $0x10,%eax;"
 		"movw %ax,(%edx);"
+		"shrl $0x10,%eax;"
+		"movw %ax,0x6(%edx);"
 		"movw $0x8e00,0x4(%edx);"
-		"movw $0x8,0x8(%edx);"
+		"movw $0x8,0x2(%edx);"
 		"movl $0x3e010000,%eax;"
-		"movw $800,(%eax);"
+		"movw $0x800,(%eax);"
 		"movl $0x3e000000,0x2(%eax);"
 		"lidtl 0x3e010000;"
 		"movb $0xb,%al;"
@@ -77,7 +77,7 @@ panic:
 		"lazyloop:;"
 		"hlt;"
 		"jmp lazyloop;"
-	); debug later*/
+	); can be used only after the interrupt discriptor table is all set*/
     while(1);
 }
 

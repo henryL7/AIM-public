@@ -25,10 +25,13 @@
 #include <elf.h>
 
 #define BUFFER_SIZE 0x200
+//the LBA number of the start of the kernel
 uint32_t KERN_LBA;
 elf32_phdr_t elfhead;
 elf32hdr_t elf32;
+//buffer for disk readin
 char buffer[BUFFER_SIZE];
+// read one block from disk to buffer
 inline static void read_block(uint32_t lba_number)
 {
 	uint8_t *temp;
@@ -47,6 +50,7 @@ inline static void read_block(uint32_t lba_number)
 		*address=myinw(0x1f0);
 	return;
 }
+// read blocks with offset(bytes) and length(bytes) to address
 static void read_disk(uint32_t offset,uint32_t length,char *address) 
 {
 	uint32_t pageoff;
@@ -75,15 +79,19 @@ __noreturn
 void bootmain(void)
 {
 	unsigned int i=0;
+	//start bit of the offset information of the main partition No.2 in mbr
 	unsigned int mbr_start=24;
 	KERN_LBA=0;
 	uint32_t tempi;
+	//compute the LBA number of the kernel code
 	for(i=0;i<4;i++)
 	{
 		tempi=(uint32_t)mbr[mbr_start+i];
 		KERN_LBA+=(tempi<<(8*i));
 	}
+	// readin elf
 	read_disk(0,PAGESIZE,(char*)(&elf32));
+	// load kernel code
 	for(i=0;i<(uint32_t)elf32.e_phnum;i++)
 	{
 		read_disk(elf32.e_phoff+i*(uint32_t)elf32.e_phentsize,(uint32_t)elf32.e_phentsize,(char*)(&elfhead));
@@ -100,6 +108,7 @@ void bootmain(void)
 			location++;
 		}
 	}
+	// jump to the entry
 	__asm__ __volatile__ ("jmp %%edx"::"d"(elf32.e_entry):"memory");
 	while (1);
 }
