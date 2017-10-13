@@ -68,6 +68,54 @@ void master_early_init(void)
 	goto panic;
 
 panic:
-	while (1);
+	/*
+	__asm__ __volatile__(
+		"jmp L2;"
+		"int_0x70:"
+		"push %eax;"
+		"push %edx;"
+		"movb $0x0c,%al;"
+		"outb $0x70;"
+		"inb $0x71;"
+		"movb $0x20,%al;"
+		"outb $0xa0;"
+		"outb $0x20;"
+		"pop %edx;"
+		"pop %eax;"
+		"iret;"
+		"L2:;"
+		"movl $0x3e000380,%edx;"
+		"movl $int_0x70,%eax;"
+		"movw %ax,(%edx);"
+		"shrl $0x10,%eax;"
+		"movw %ax,0x6(%edx);"
+		"movw $0x8e00,0x4(%edx);"
+		"movw $0x8,0x2(%edx);"
+		"movl $0x3e010000,%eax;"
+		"movw $0x800,(%eax);"
+		"movl $0x3e000000,0x2(%eax);"
+		"lidtl 0x3e010000;"
+		"movb $0xb,%al;"
+		"orb $0x80,%al;"
+		"outb $0x70;"
+		"movb $0x40,%al;"
+		"outb $0x71;"
+		"movb $0xa,%al;"
+		"outb $0x70;"
+		"inb $0x71;"
+		"orb $0xf,%al;"
+		"outb $0x71;"
+		"movb $0xc,%al;"
+		"outb $0x70;"
+		"inb $0x71;"
+		"inb $0xa1;"
+		"andb $0xfe,%al;"
+		"outb $0xa1;"
+		"sti;"
+		"lazyloop:;"
+		"hlt;"
+		"jmp lazyloop;"
+	); can be used only after the interrupt discriptor table is all set*/
+    while(1);
 }
 
