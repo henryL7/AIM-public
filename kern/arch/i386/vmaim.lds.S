@@ -27,9 +27,11 @@
  * linker script.
  */
 
-ENTRY(master_early_entry)
+ENTRY(master_entry)
 SECTIONS{
-    .text 0x30000000 : AT (0x30000000)
+    kern_offset = 0x80000000 ;
+    master_entry = master_early_entry - kern_offset ;
+    .text 0x80000000 : AT (0x10000)
     {
         * ( .text ) ;
     }
@@ -42,12 +44,13 @@ SECTIONS{
         *(.data)
     }
     . = ALIGN (16) ;
-    bss_start = . ;
+    bss_start = . - kern_offset ;
     .bss :
     {
         *(.bss)
     }
-    bss_end = . ;
+    bss_end = . - kern_offset ;
+    kernel_end = . ;
     /DISCARD/ :
     {
         *(.eh_frame)

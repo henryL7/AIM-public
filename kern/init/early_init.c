@@ -64,7 +64,18 @@ void master_early_init(void)
 	) < 0)
 		panic("Early console init failed.\n");
 	kputs("Hello, world!\n");
-
+	mmu_init(boot_pgindex);
+	__asm__ __volatile__(
+		"ljmpl $0x8,$next_line;"
+		"next_line:;"
+		"movl $0x80000000,%ebx;"
+		"addl %ebx,%ebp;"
+		"addl %ebx,%esp;"
+		"movw  $0x10,%ax;"     
+		"movw  %ax,%ds;"
+		"movw  %ax,%ss;"
+		"movw  %ax,%es;":::"memory"
+	);
 	goto panic;
 
 panic:

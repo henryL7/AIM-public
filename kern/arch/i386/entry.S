@@ -41,11 +41,12 @@ cld
 
 /*set up stack-segment register*/
 movl $stack_addr,%esp  
+subl $kern_offset,%esp
 movl %esp,%ebp    
 
 /*clear bss*/
 
-movl $bss_start,%ebx  
+movl $bss_start,%ebx
 movl $bss_end,%edx
 
 clearbss:
@@ -64,4 +65,6 @@ call master_early_init
 .data
 
 .local stack_addr 
-stack_addr = 0x3f000000
+stack_addr = 0xf0000000
+.local kern_offset
+kern_offset = 0x80000000
