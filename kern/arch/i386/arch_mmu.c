@@ -30,9 +30,10 @@
 #define _4KB_PDE_OFFSET (22)
 #define _4KB_PTE_OFFSET (12)
 
+
 bool early_mapping_valid(struct early_mapping *entry)
 {
-	if((((entry->paddr)>>_4MB_OFFSET)<<_4MB_OFFSET)==entry->addr)
+	if((((entry->paddr)>>_4MB_OFFSET)<<_4MB_OFFSET)==entry->paddr)
 		return true;
 	return false;
 }
@@ -49,9 +50,9 @@ int page_index_early_map(pgindex_t *index, addr_t paddr,
 	void *vaddr, size_t length)
 {
 	pde_t entry_base=0x183;        //binary:  0000 0001 1000 0011
-	pde_t paddr_split[2];
-	paddr_split=&paddr;
-	pde_t phy_page_index=paddr_split[1]>>_4MB_OFFSET;
+	pde_t paddr_split;
+	paddr_split=(pde_t)paddr;
+	pde_t phy_page_index=paddr_split>>_4MB_OFFSET;
 	uint32_t page_offset=((uint32_t)vaddr)>>_4MB_OFFSET;
 	//index=(pgindex_t *)((uint32_t)index+page_offset*4);
 	uint32_t page_num=(uint32_t)(length/MY_EARLY_PAGE_SIZE)+(length%MY_EARLY_PAGE_SIZE!=0);
@@ -66,7 +67,6 @@ void mmu_init(pgindex_t *boot_page_index)
 {
 	// enable paging
 	__asm__ __volatile__ (
-		"movl %%ebx,%%cr0;"
 		"andl $0xfffff000,%%ebx;"
 		"movl %%ebx,%%cr3;"
 		"movl %%cr4,%%ebx;"
@@ -75,6 +75,9 @@ void mmu_init(pgindex_t *boot_page_index)
 		"movl %%cr0,%%ebx;"
 		"orl $0x80000000,%%ebx;"
 		"movl %%ebx,%%cr0;"
+		"ljmpl $0x8,$next_line;"
+		"next_line:;"
+		"nop;"
 		::"ebx"(boot_page_index):"memory"
 	);
 
@@ -82,23 +85,28 @@ void mmu_init(pgindex_t *boot_page_index)
 
 pgindex_t *init_pgindex(void)
 {
-	return 0;
+	extern char page_table_start[];
+	uint32_t page_table_align=(uint32_t)page_table_start;
+	page_table_align+=2*MY_EARLY_PAGE_SIZE;
+	page_table_align=(page_table_align/PAGE_SIZE)*PAGE_SIZE+(page_table_align%PAGE_SIZE!=0)*PAGE_SIZE;
+	static uint32_t count=0;
+	return (pgindex_t*)(page_table_align+(count++)*PAGE_SIZE);
 }
 
 void destroy_pgindex(pgindex_t *pgindex)
 {
 	pde_t clear_item=0;
 	for(uint32_t i=0;i<ENTRY_NUM;i++)
-		index[i]=clear_item;
+		pgindex[i]=clear_item;
 	return;
 }
 
 void vaddr_preprocessing(void *vaddr,size_t size,uint32_t *results)
 {
-	uint32_t results[0]=(uint32_t)(size/PAGE_SIZE)+(size%PAGE_SIZE!=0);  //pte_num
-	uint32_t results[1]=((uint32_t)vaddr)>>_4KB_PTE_OFFSET)&0x3ff;  //pte_index
-	uint32_t results[2]=((uint32_t)vaddr)>>_4KB_PDE_OFFSET;   //pde_index
-	uint32_t results[3]=(pte_num+pte_index)/ENTRY_NUM+((pte_num+pte_index)%ENTRY_NUM!=0);  //pde_num
+	results[0]=(uint32_t)((size/PAGE_SIZE)+(size%PAGE_SIZE!=0));  //pte_num
+	results[1]=(((uint32_t)vaddr)>>_4KB_PTE_OFFSET)&0x3ff;  //pte_index
+	results[2]=((uint32_t)vaddr)>>_4KB_PDE_OFFSET;   //pde_index
+	results[3]=(results[0]+results[1])/ENTRY_NUM+((results[0]+results[1])%ENTRY_NUM!=0);  //pde_num
 	return;
 }
 int map_pages(pgindex_t *pgindex, void *vaddr, addr_t paddr, size_t size,uint32_t flags)
@@ -110,13 +118,13 @@ int map_pages(pgindex_t *pgindex, void *vaddr, addr_t paddr, size_t size,uint32_
 	uint32_t pte_index=results[1];
 	uint32_t pde_index=results[2];
 	uint32_t pde_num=results[3];
-	pde_t paddr_split[2];
-	paddr_split=(pte_t*)&paddr;
-	pde_t phy_page_index=paddr_split[1]>>_4KB_PTE_OFFSET;
+	pde_t paddr_split;
+	paddr_split=(pde_t)paddr;
+	pde_t phy_page_index=paddr_split>>_4KB_PTE_OFFSET;
 	for(uint32_t i=0;i<pde_num;i++)
 	{
 		pgindex_t* pte_addr;
-		if(pgindex[i+pde_index]&1==0)
+		if(((pgindex[i+pde_index])&(1))==0)
 		{
 			pte_addr=init_pgindex();
 			pgindex[i+pde_index]=((uint32_t)pte_addr)&pde_base;
@@ -174,12 +182,12 @@ ssize_t unmap_pages(pgindex_t *pgindex, void *vaddr, size_t size, addr_t *paddr)
 		{
 			if(i==0&&j==pte_start)
 			{
-				if(pte_addr[j]&1!=0)
-					paddr=pte_addr[j];
+				if((pte_addr[j]&1)!=0)
+					*paddr=pte_addr[j];
 				else
 					return -1;
 			}
-			if(pte_addr[j]&1!=0)
+			if(((pte_addr[j])&(1))!=0)
 				phy_size+=PAGE_SIZE;
 			pte_addr[j]=0;
 		}
@@ -252,12 +260,12 @@ ssize_t invalidate_pages(pgindex_t *pgindex, void *vaddr, size_t size,addr_t *pa
 		{
 			if(i==0&&j==pte_start)
 			{
-				if(pte_addr[j]&1!=0)
-					paddr=pte_addr[j];
+				if((pte_addr[j]&1)!=0)
+					*paddr=pte_addr[j];
 				else
 					return -1;
 			}
-			if(pte_addr[j]&1!=0)
+			if((pte_addr[j]&1)!=0)
 				phy_size+=PAGE_SIZE;
 			pte_addr[j]=pte_addr[j]&0;
 		}

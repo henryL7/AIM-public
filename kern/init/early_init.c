@@ -31,6 +31,7 @@
 #include <drivers/io/io-port.h>
 #include <platform.h>
 
+#define _4MB_PAGE_SIZE (1<<22)
 static inline
 int early_devices_init(void)
 {
@@ -64,17 +65,24 @@ void master_early_init(void)
 	) < 0)
 		panic("Early console init failed.\n");
 	kputs("Hello, world!\n");
+	extern char kernel_end[];
+    size_t kernel_length=(unsigned long)kernel_end;
+    kernel_length=premap_addr(kernel_length);
+	uint32_t boot_pgindex_align = kernel_length;
+    pgindex_t* boot_pgindex= (boot_pgindex_align/_4MB_PAGE_SIZE)*_4MB_PAGE_SIZE
+    +(boot_pgindex_align%_4MB_PAGE_SIZE!=0)*_4MB_PAGE_SIZE;
+    page_index_init(boot_pgindex);
 	mmu_init(boot_pgindex);
 	__asm__ __volatile__(
 		"ljmpl $0x8,$next_line;"
 		"next_line:;"
-		"movl $0x80000000,%ebx;"
-		"addl %ebx,%ebp;"
-		"addl %ebx,%esp;"
-		"movw  $0x10,%ax;"     
-		"movw  %ax,%ds;"
-		"movw  %ax,%ss;"
-		"movw  %ax,%es;":::"memory"
+		"movl $0x80000000,%%ebx;"
+		"addl %%ebx,%%ebp;"
+		"addl %%ebx,%%esp;"
+		"movw  $0x10,%%ax;"     
+		"movw  %%ax,%%ds;"
+		"movw  %%ax,%%ss;"
+		"movw  %%ax,%%es;":::"memory"
 	);
 	goto panic;
 

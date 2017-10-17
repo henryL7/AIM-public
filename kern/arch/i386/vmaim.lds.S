@@ -30,7 +30,7 @@
 ENTRY(master_entry)
 SECTIONS{
     kern_offset = 0x80000000 ;
-    master_entry = master_early_entry - kern_offset ;
+    master_entry = 0x80010000 ;
     .text 0x80000000 : AT (0x10000)
     {
         * ( .text ) ;
@@ -51,6 +51,7 @@ SECTIONS{
     }
     bss_end = . - kern_offset ;
     kernel_end = . ;
+    page_table_start = . - kern_offset ;
     /DISCARD/ :
     {
         *(.eh_frame)
