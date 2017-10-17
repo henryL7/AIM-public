@@ -66,7 +66,7 @@ static void read_disk(uint32_t offset,uint32_t length,char *address)
 	uint32_t j;
 	for(uint32_t i=0;i<page_num;i++)
 	{
-		read_block(pageoff);
+		read_block(pageoff+i);
 		j=(i==0?byteoff:0);
 		l=(i==page_num-1?last_length:PAGESIZE);
 		for(;j<l;j++,address++)
@@ -97,7 +97,7 @@ void bootmain(void)
 		read_disk(elf32.e_phoff+i*(uint32_t)elf32.e_phentsize,(uint32_t)elf32.e_phentsize,(char*)(&elfhead));
 		if(elfhead.p_type!=PT_LOAD)
 		continue;
-		char* location=(char*)elfhead.p_vaddr;
+		char* location=(char*)elfhead.p_paddr;
 		read_disk(elfhead.p_offset,elfhead.p_filesz,location);
 		uint32_t bss_size=elfhead.p_memsz-elfhead.p_filesz;
 		location=(char*)((uint32_t) location+elfhead.p_filesz);

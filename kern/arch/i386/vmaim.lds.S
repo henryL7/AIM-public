@@ -34,18 +34,27 @@ SECTIONS{
     .text 0x80010000 : AT (0x10000)
     {
         * ( .text ) ;
+        * ( .text.__x86.get_pc_thunk.bx ) ;
+        * ( .text.__x86.get_pc_thunk.si ) ;
+        * ( .text.__x86.get_pc_thunk.ax ) ;
+        * ( .text.__x86.get_pc_thunk.bp ) ;
+        * ( .text.__x86.get_pc_thunk.dx ) ;
     }
-    .rodata ALIGN(16):
+    . = ALIGN (16) ;
+    rodata_paddr = . - kern_offset ;
+    .rodata : AT ( rodata_paddr )
     {
         *(.rodata)
     }
-    .data ALIGN(16):
+    . = ALIGN (16) ;
+    data_paddr = . - kern_offset ;
+    .data ALIGN(16): AT ( data_paddr )
     {
         *(.data)
     }
     . = ALIGN (16) ;
     bss_start = . - kern_offset ;
-    .bss :
+    .bss : AT ( bss_start )
     {
         *(.bss)
     }

@@ -31,7 +31,7 @@
 #define _4MB_PAGE_SIZE (1<<22)
 void arch_early_init(void)
 {
-    uint32_t gdt_table[2*gdt_num];
+    static uint32_t gdt_table[2*gdt_num];
     gdt_table[0]=0;
     gdt_table[1]=0;
     gdt_table[2]=0xffff;
@@ -39,10 +39,16 @@ void arch_early_init(void)
     gdt_table[4]=0xffff;
     gdt_table[5]=0xcf9200;
     __asm__ __volatile__ (
-      "movl %%esp,%%eax;"
-      "pushw %%bx;"
       "pushl %%ecx;"
-      "lgdtl (%%eax);"
+      "pushw %%bx;"
+      "lgdtl (%%esp);"
+      "popw %%bx;"
+      "popl %%ebx;"
+      "movw $0x10,%%bx;"
+      "movw %%bx,%%es;"
+      "movw %%bx,%%ss;"
+      "movw %%bx,%%gs;"
+      "movw %%bx,%%ds;"
       ::"bx"(gdt_num*8),"ecx"(gdt_table):"memory"
     );
     extern char kernel_end[];

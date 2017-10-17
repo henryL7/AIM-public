@@ -67,6 +67,6 @@ call master_early_init
 .data
 
 .local stack_addr 
-stack_addr = 0xf0000000
+stack_addr = 0xa0000000
 .local kern_offset
 kern_offset = 0x80000000
