@@ -74,8 +74,6 @@ void master_early_init(void)
     page_index_init(boot_pgindex);
 	mmu_init(boot_pgindex);
 	__asm__ __volatile__(
-		"ljmpl $0x8,$next_line;"
-		"next_line:;"
 		"movl $0x80000000,%%ebx;"
 		"addl %%ebx,%%ebp;"
 		"addl %%ebx,%%esp;"

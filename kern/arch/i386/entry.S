@@ -23,7 +23,9 @@
 .text
 
 .globl _start
+.hidden _start
 .globl master_early_entry
+.hidden master_early_entry
 .weak bss_start
 .weak bss_end
 

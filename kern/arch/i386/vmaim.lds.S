@@ -27,11 +27,11 @@
  * linker script.
  */
 
-ENTRY(master_entry)
+kern_offset = 0x80000000 ;
+master_early_entry -= kern_offset ;
+ENTRY(master_early_entry)
 SECTIONS{
-    kern_offset = 0x80000000 ;
-    master_entry = 0x80010000 ;
-    .text 0x80000000 : AT (0x10000)
+    .text 0x80010000 : AT (0x10000)
     {
         * ( .text ) ;
     }
