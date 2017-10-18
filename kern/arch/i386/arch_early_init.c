@@ -29,6 +29,7 @@
 #define gdt_num (3)
 #define Kern_Base (0x80000000)
 #define _4MB_PAGE_SIZE (1<<22)
+#define MAP_LENGTH (0x40000000)
 void arch_early_init(void)
 {
     static uint32_t gdt_table[2*gdt_num];
@@ -57,11 +58,11 @@ void arch_early_init(void)
     struct early_mapping entry = {
 		.paddr	= phy_base,
 		.vaddr	= phy_base,
-		.size	= kernel_length,
+		.size	= MAP_LENGTH,
 		.type	= EARLY_MAPPING_MEMORY
     };
     early_mapping_add(&entry);
-    early_mapping_add_memory(phy_base,kernel_length);
+    early_mapping_add_memory(phy_base,MAP_LENGTH);
     return;
 }
 

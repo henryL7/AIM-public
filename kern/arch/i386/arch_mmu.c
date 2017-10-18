@@ -57,7 +57,7 @@ int page_index_early_map(pgindex_t *index, addr_t paddr,
 	//index=(pgindex_t *)((uint32_t)index+page_offset*4);
 	uint32_t page_num=(uint32_t)(length/MY_EARLY_PAGE_SIZE)+(length%MY_EARLY_PAGE_SIZE!=0);
 	for(uint32_t i=0;i<page_num;i++,phy_page_index+=1)
-		index[page_offset+i]=((phy_page_index<<_4MB_OFFSET)&entry_base);
+		index[page_offset+i]=((phy_page_index<<_4MB_OFFSET)|entry_base);
 	return 0;
 	
 	return -1;
@@ -75,8 +75,6 @@ void mmu_init(pgindex_t *boot_page_index)
 		"movl %%cr0,%%ebx;"
 		"orl $0x80000000,%%ebx;"
 		"movl %%ebx,%%cr0;"
-		"ljmpl $0x8,$next_line;"
-		"next_line:;"
 		"nop;"
 		::"ebx"(boot_page_index):"memory"
 	);
@@ -87,7 +85,6 @@ pgindex_t *init_pgindex(void)
 {
 	extern char page_table_start[];
 	uint32_t page_table_align=(uint32_t)page_table_start;
-	page_table_align+=2*MY_EARLY_PAGE_SIZE;
 	page_table_align=(page_table_align/PAGE_SIZE)*PAGE_SIZE+(page_table_align%PAGE_SIZE!=0)*PAGE_SIZE;
 	static uint32_t count=0;
 	return (pgindex_t*)(page_table_align+(count++)*PAGE_SIZE);
@@ -127,7 +124,7 @@ int map_pages(pgindex_t *pgindex, void *vaddr, addr_t paddr, size_t size,uint32_
 		if(((pgindex[i+pde_index])&(1))==0)
 		{
 			pte_addr=init_pgindex();
-			pgindex[i+pde_index]=((uint32_t)pte_addr)&pde_base;
+			pgindex[i+pde_index]=((uint32_t)pte_addr)|pde_base;
 		}
 		pte_addr=(pgindex_t*)((pgindex[i+pde_index])&0xfffff000);
 		uint32_t pte_start=0,pte_end=0;
@@ -145,7 +142,7 @@ int map_pages(pgindex_t *pgindex, void *vaddr, addr_t paddr, size_t size,uint32_
 			pte_end=ENTRY_NUM;
 		for(uint32_t j=pte_start;j<pte_end;j++)
 		{
-			pte_addr[j]=((phy_page_index<<_4KB_PTE_OFFSET)&flags);
+			pte_addr[j]=((phy_page_index<<_4KB_PTE_OFFSET)|flags);
 			phy_page_index+=1;
 		}
 	}
@@ -224,7 +221,7 @@ int set_pages_perm(pgindex_t *pgindex, void *vaddr, size_t size, uint32_t flags)
 			pte_end=ENTRY_NUM;
 		for(uint32_t j=pte_start;j<pte_end;j++)
 		{
-			pte_addr[j]=pte_addr[j]&&flags;
+			pte_addr[j]=pte_addr[j]|flags;
 		}
 	}
 	return 0;
@@ -270,7 +267,7 @@ ssize_t invalidate_pages(pgindex_t *pgindex, void *vaddr, size_t size,addr_t *pa
 			pte_addr[j]=pte_addr[j]&0;
 		}
 		if(pte_start==0&&pte_end==ENTRY_NUM)
-			pgindex[i+pde_index]=pgindex[i+pde_index]&0;
+			pgindex[i+pde_index]=pgindex[i+pde_index]&0xfffffffe;
 	}
 	return phy_size;	
 }
