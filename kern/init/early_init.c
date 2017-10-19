@@ -50,6 +50,10 @@ int early_devices_init(void)
 __noreturn
 void master_early_init(void)
 {
+	static uint32_t entry_count=0;
+	if(entry_count!=0)
+		goto panic;
+	entry_count++;
 	/* clear address-space-related callback handlers */
 	early_mapping_clear();
 	mmu_handlers_clear();
@@ -58,7 +62,7 @@ void master_early_init(void)
 		goto panic;
 	/* other preperations, including early secondary buses */
 	arch_early_init();
-	get_mem_size();
+	//get_mem_size();
 	if (early_console_init(
 		EARLY_CONSOLE_BUS,
 		EARLY_CONSOLE_BASE,
@@ -66,10 +70,16 @@ void master_early_init(void)
 	) < 0)
 		panic("Early console init failed.\n");
 	kputs("Hello, world!\n");
-    pgindex_t* boot_pgindex= init_pgindex();
-    page_index_init(boot_pgindex);
-	mmu_init(boot_pgindex);
-	__asm__ __volatile__(
+	arch_init_mmu();
+	/*__asm__ __volatile__(
+		"subl $0xc,%%esp;"
+		"sgdtl (%%esp);"
+		"popw %%bx;"
+		"popl %%eax;"
+		"addl $0x80000000,%%eax;"
+		"pushl %%eax;"
+		"pushw %%bx;"
+		"lgdtl (%%esp);"
 		"ljmpl $0x8,$next_line;"
 		"next_line:;"
 		"movl $0x80000000,%%ebx;"
@@ -79,7 +89,8 @@ void master_early_init(void)
 		"movw  %%ax,%%ds;"
 		"movw  %%ax,%%ss;"
 		"movw  %%ax,%%es;":::"memory"
-	);
+	);*/
+	arch_jump_high();
 	goto panic;
 
 panic:

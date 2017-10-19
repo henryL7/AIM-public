@@ -45,6 +45,7 @@ addr_t cmos_read(uint8_t data)
 }
 addr_t get_mem_size()
 {
+	// cannot work correctly when memory size exceeds 3578MB
 	addr_t basemem=0,extmem=0,ext16mem=0,totalmem=0;
     
 	basemem=cmos_read(0x15);

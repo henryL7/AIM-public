@@ -52,17 +52,55 @@ void arch_early_init(void)
       "movw %%bx,%%ds;"
       ::"bx"(gdt_num*8),"ecx"(gdt_table):"memory"
     );
+    /*
     extern char kernel_end[];
     size_t kernel_length=(size_t)kernel_end;
     kernel_length=premap_addr(kernel_length);
+    */
     struct early_mapping entry = {
 		.paddr	= phy_base,
 		.vaddr	= phy_base,
 		.size	= MAP_LENGTH,
 		.type	= EARLY_MAPPING_MEMORY
     };
+    /*low address linear mapping*/
     early_mapping_add(&entry);
+    /*high address linear mapping*/
     early_mapping_add_memory(phy_base,MAP_LENGTH);
     return;
+}
+
+void arch_init_mmu(void)
+{
+  pgindex_t* boot_pgindex= init_pgindex();
+  page_index_init(boot_pgindex);
+  pgindex_t* arch_init_pgindex(void);
+  mmu_init(boot_pgindex);
+}
+
+__noreturn
+void arch_jump_high(void)
+{
+  __asm__ __volatile__(
+		"subl $0xc,%%esp;"
+		"sgdtl (%%esp);"
+		"popw %%bx;"
+		"popl %%eax;"
+		"addl $0x80000000,%%eax;"
+		"pushl %%eax;"
+		"pushw %%bx;"
+		"lgdtl (%%esp);"
+		"ljmpl $0x8,$next_line;"
+		"next_line:;"
+		"movl $0x80000000,%%ebx;"
+		"addl %%ebx,%%ebp;"
+		"addl %%ebx,%%esp;"
+		"movw  $0x10,%%ax;"     
+		"movw  %%ax,%%ds;"
+		"movw  %%ax,%%ss;"
+		"movw  %%ax,%%es;":::"memory"
+  );
+  master_early_init();
+  while(1);
 }
 
