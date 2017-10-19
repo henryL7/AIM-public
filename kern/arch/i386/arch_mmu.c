@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <aim/early_kmmap.h>
 #include <aim/mmu.h>
+#include <arch/i386/arch-boot.h>
 
 #define ENTRY_NUM (1024)
 #define _4MB_OFFSET (22)
@@ -30,6 +31,33 @@
 #define _4KB_PDE_OFFSET (22)
 #define _4KB_PTE_OFFSET (12)
 
+
+
+addr_t cmos_read(uint8_t data)
+{
+	addr_t low=0,high=0;
+	myoutb(0x70,data);
+	low=(addr_t)myinb(0x71);
+	myoutb(0x70,data+1);
+	high=(addr_t)myinb(0x71);
+	high=(high<<8)+low;
+	return high;
+}
+addr_t get_mem_size()
+{
+	addr_t basemem=0,extmem=0,ext16mem=0,totalmem=0;
+    
+	basemem=cmos_read(0x15);
+	extmem=cmos_read(0x17);
+	ext16mem=cmos_read(0x34)*64;
+	if(ext16mem)
+		totalmem=16*1024+ext16mem;
+	else if(extmem)
+		totalmem=1024+extmem;
+	else
+		totalmem=basemem;
+	return (totalmem<<10);
+}
 
 bool early_mapping_valid(struct early_mapping *entry)
 {

@@ -58,6 +58,7 @@ void master_early_init(void)
 		goto panic;
 	/* other preperations, including early secondary buses */
 	arch_early_init();
+	get_mem_size();
 	if (early_console_init(
 		EARLY_CONSOLE_BUS,
 		EARLY_CONSOLE_BASE,
