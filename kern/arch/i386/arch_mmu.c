@@ -30,7 +30,10 @@
 #define MY_EARLY_PAGE_SIZE (1<<_4MB_OFFSET)
 #define _4KB_PDE_OFFSET (22)
 #define _4KB_PTE_OFFSET (12)
+#define INDEX_PAGE_NUM (1024)
 
+__attribute__((visibility("hidden")))
+uint8_t index_page_flags[INDEX_PAGE_NUM]={0};
 
 
 addr_t cmos_read(uint8_t data)
@@ -114,16 +117,41 @@ pgindex_t *init_pgindex(void)
 {
 	extern char page_table_start[];
 	uint32_t page_table_align=(uint32_t)page_table_start;
+	page_table_align+=KSTACKSIZE;
 	page_table_align=(page_table_align/PAGE_SIZE)*PAGE_SIZE+(page_table_align%PAGE_SIZE!=0)*PAGE_SIZE;
 	static uint32_t count=0;
-	return (pgindex_t*)(page_table_align+(count++)*PAGE_SIZE);
+	if(count==0)
+	{
+		count++;
+		index_page_flags[0]=1;
+		return (pgindex_t*)page_table_align;
+	}
+	for(uint32_t i=0;i<INDEX_PAGE_NUM;i++)
+	{
+		if(index_page_flags[i]==0)
+		{
+			index_page_flags[i]=1;
+			return postmap_addr((pgindex_t*)(page_table_align+i*PAGE_SIZE));
+		}
+	}
+	//should not reach here
+	while(1);
+	return 0;
 }
 
 void destroy_pgindex(pgindex_t *pgindex)
 {
+	pgindex=postmap_addr(pgindex);
 	pde_t clear_item=0;
 	for(uint32_t i=0;i<ENTRY_NUM;i++)
 		pgindex[i]=clear_item;
+	extern char page_table_start[];
+	uint32_t page_table_align=(uint32_t)page_table_start;
+	page_table_align+=KSTACKSIZE;
+	page_table_align=(page_table_align/PAGE_SIZE)*PAGE_SIZE+(page_table_align%PAGE_SIZE!=0)*PAGE_SIZE;
+	uint32_t real_addr=premap_addr((uint32_t)pgindex);
+	real_addr-=page_table_align;
+	index_page_flags[real_addr/PAGE_SIZE]=0;
 	return;
 }
 
@@ -137,6 +165,7 @@ void vaddr_preprocessing(void *vaddr,size_t size,uint32_t *results)
 }
 int map_pages(pgindex_t *pgindex, void *vaddr, addr_t paddr, size_t size,uint32_t flags)
 {
+	pgindex=postmap_addr(pgindex);
 	uint32_t pde_base=7;     // binary 00111
 	uint32_t results[4]={0,0,0,0};
 	vaddr_preprocessing(vaddr,size,results);
@@ -180,6 +209,7 @@ int map_pages(pgindex_t *pgindex, void *vaddr, addr_t paddr, size_t size,uint32_
 
 ssize_t unmap_pages(pgindex_t *pgindex, void *vaddr, size_t size, addr_t *paddr)
 {
+	pgindex=postmap_addr(pgindex);
 	uint32_t results[4]={0,0,0,0};
 	vaddr_preprocessing(vaddr,size,results);
 	uint32_t pte_num=results[0];
@@ -191,6 +221,7 @@ ssize_t unmap_pages(pgindex_t *pgindex, void *vaddr, size_t size, addr_t *paddr)
 	{
 		pgindex_t* pte_addr;
 		pte_addr=(pgindex_t*)((pgindex[i+pde_index])&0xfffff000);
+		pte_addr=postmap_addr(pte_addr);
 		uint32_t pte_start=0,pte_end=0;
 		if(i==0)
 			pte_start=pte_index;
@@ -218,13 +249,17 @@ ssize_t unmap_pages(pgindex_t *pgindex, void *vaddr, size_t size, addr_t *paddr)
 			pte_addr[j]=0;
 		}
 		if(pte_start==0&&pte_end==ENTRY_NUM)
+		{
 			pgindex[i+pde_index]=0;
+			destroy_pgindex(pte_addr);
+		}
 	}
 	return phy_size;	
 }
 
 int set_pages_perm(pgindex_t *pgindex, void *vaddr, size_t size, uint32_t flags)
 {
+	pgindex=postmap_addr(pgindex);
 	uint32_t results[4]={0,0,0,0};
 	vaddr_preprocessing(vaddr,size,results);
 	uint32_t pte_num=results[0];
@@ -235,6 +270,7 @@ int set_pages_perm(pgindex_t *pgindex, void *vaddr, size_t size, uint32_t flags)
 	{
 		pgindex_t* pte_addr;
 		pte_addr=(pgindex_t*)((pgindex[i+pde_index])&0xfffff000);
+		pte_addr=postmap_addr(pte_addr);
 		uint32_t pte_start=0,pte_end=0;
 		if(i==0)
 			pte_start=pte_index;
@@ -258,6 +294,7 @@ int set_pages_perm(pgindex_t *pgindex, void *vaddr, size_t size, uint32_t flags)
 
 ssize_t invalidate_pages(pgindex_t *pgindex, void *vaddr, size_t size,addr_t *paddr)
 {
+	pgindex=postmap_addr(pgindex);
 	uint32_t results[4]={0,0,0,0};
 	vaddr_preprocessing(vaddr,size,results);
 	uint32_t pte_num=results[0];
@@ -269,6 +306,7 @@ ssize_t invalidate_pages(pgindex_t *pgindex, void *vaddr, size_t size,addr_t *pa
 	{
 		pgindex_t* pte_addr;
 		pte_addr=(pgindex_t*)((pgindex[i+pde_index])&0xfffff000);
+		pte_addr=postmap_addr(pte_addr);
 		uint32_t pte_start=0,pte_end=0;
 		if(i==0)
 			pte_start=pte_index;
@@ -303,6 +341,7 @@ ssize_t invalidate_pages(pgindex_t *pgindex, void *vaddr, size_t size,addr_t *pa
 
 int switch_pgindex(pgindex_t *pgindex)
 {
+	pgindex=premap_addr(pgindex);
 	__asm__ __volatile__ ("movl %%ebx,%%cr3;"::"ebx"(pgindex):"memory");
 	return 0;
 }
@@ -311,7 +350,7 @@ pgindex_t *get_pgindex(void)
 {
 	pgindex_t *result=NULL;
 	__asm__ __volatile__ ("movl %%cr3,%%ebx;":"=ebx"(result)::"memory");
-	return result;
+	return postmap_addr(result);
 }
 
 

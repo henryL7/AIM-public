@@ -31,7 +31,7 @@ kern_offset = 0x80000000 ;
 master_early_entry -= kern_offset ;
 ENTRY(master_early_entry)
 SECTIONS{
-    .text 0x80010000 : AT (0x10000)
+    .text KERN_BASE + KERN_START : AT ( KERN_START )
     {
         * ( .text ) ;
         * ( .text.__x86.get_pc_thunk.bx ) ;
@@ -57,6 +57,7 @@ SECTIONS{
     .bss : AT ( bss_start )
     {
         *(.bss)
+        . = ALIGN (16) ;
     }
     bss_end = . - kern_offset ;
     kernel_end = . ;

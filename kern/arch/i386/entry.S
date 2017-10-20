@@ -42,8 +42,8 @@ cld
 
 
 /*set up stack-segment register*/
-movl $stack_addr,%esp  
-subl $kern_offset,%esp
+movl $bss_end,%esp  
+addl $stack_size,%esp
 movl %esp,%ebp    
 
 /*clear bss*/
@@ -67,6 +67,6 @@ call master_early_init
 .data
 
 .local stack_addr 
-stack_addr = 0xa0000000
+stack_size = KSTACKSIZE
 .local kern_offset
 kern_offset = 0x80000000
