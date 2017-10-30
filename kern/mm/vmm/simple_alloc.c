@@ -11,18 +11,16 @@
 #include <libc/string.h>
 
 __attribute__((visibility("hidden")))
-void* free_start;
+void* free_start=NULL;
 __attribute__((visibility("hidden")))
-void* free_end;
+void* bootstrap_page_start=NULL;
 
+#define BOOT_PAGE_NUM (10)
 #define WSIZE (4)
+#define DSIZE (8)
 /*alignment*/
 #define ALIGN_SIZE (16)
 #define OVERHEAD_SIZE (16)
-/* Double word size (bytes) */
-#define CHUNKSIZE (1<<12) /* Extend heap by this amount (bytes) */
-
-#define MAX(x, y) ((x) > (y)? (x) : (y))
 
 /* Pack a size and allocated bit into a word */
 #define PACK(size, alloc) ((size) | (alloc))
@@ -31,134 +29,165 @@ void* free_end;
 #define GET(p) (*(unsigned int *)(p))
 #define PUT(p, val) (*(unsigned int *)(p) = (val))
 
+/* Read and write the prev and succ pointer*/
+#define GET_PREV(p) (*(unsigned int *)(p))
+#define GET_SUCC(p) (*((unsigned int *)(p)+WSIZE))
+#define PUT_PREV(p,val) (*(unsigned int *)(p) = (val))
+#define PUT_SUCC(p,val) (*((unsigned int *)(p)+WSIZE) = (val))
 
 /* Read the size and allocated fields from address p */
 #define GET_SIZE(p) (GET(p) & ~0x7)
 #define GET_ALLOC(p) (GET(p) & 0x1)
 
 /* Given block ptr bp, compute address of its header and footer */
-#define HDRP(bp) ((char *)(bp) - WSIZE)
-#define FTRP(bp) ((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
+#define HDRP(bp) ((void *)(bp) - WSIZE)
+#define FTRP(bp) ((void *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
 
 /* Given block ptr bp, compute address of next and previous blocks */
-#define NEXT_BLKP(bp) ((char *)(bp) + GET_SIZE(((char *)(bp) - WSIZE)))
-#define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
+#define NEXT_BLKP(bp) ((void *)(bp) + GET_SIZE(((void *)(bp) - WSIZE)))
+#define PREV_BLKP(bp) ((void *)(bp) - GET_SIZE(((void *)(bp) - DSIZE)))
 
-static void *coalesce(void *bp)
+/*wrapper for two diffrent 'get_page' function*/
+struct Getpage{
+    int (*get_page)(void);
+};
+
+static int __get_page() {}
+
+static struct Getpage __getpage = {
+	.get_page	__get_page
+};
+
+/*using LIFO policy*/
+void add_empty_block(void *ptr)
 {
-    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
-    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
-    size_t size = GET_SIZE(HDRP(bp));
+    if(ptr==NULL)
+        return;
+    if(free_start!=NULL)
+        PUT_PREV(free_start,ptr);
+    PUT_SUCC(ptr,free_start);
+    PUT_PREV(ptr,NULL);
+    free_start=ptr;
+    return;
+}
+
+void delete_empty_block(void *ptr)
+{
+    if(ptr==NULL)
+        return;
+    if(ptr==free_start)
+    {
+        void* succ_ptr=GET_SUCC(ptr);
+        free_start=succ_ptr;
+        if(free_start!=NULL)
+            PUT_PREV(free_start,NULL);
+        return;
+    }
+    void* succ_ptr=GET_SUCC(ptr);
+    void* prev_ptr=GET_PREV(ptr);
+    if(succ_ptr!=NULL)
+        PUT_PREV(succ_ptr,prev_ptr);
+    if(prev_ptr!=NULL)
+        PUT_SUCC(prev_ptr,succ_ptr);
+}
+
+void *coalesce(void *obj)
+{
+    uint32_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(obj)));
+    uint32_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(obj)));
+    uint32_t size = GET_SIZE(HDRP(obj));
 
     if (prev_alloc && next_alloc) {             /* Case 1 */
-        return bp;
+        add_empty_block(obj);
     }
 
     else if (prev_alloc && !next_alloc) {       /* Case 2 */
-        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
-        PUT(HDRP(bp), PACK(size, 0));
-        PUT(FTRP(bp), PACK(size,0));
+        void* next_ptr=NEXT_BLKP(obj);
+        size += GET_SIZE(HDRP(next_ptr));
+        PUT(HDRP(obj), PACK(size, 0));
+        PUT(FTRP(obj), PACK(size,0));
+        delete_empty_block(next_ptr);
+        add_empty_block(obj);
     }
 
     else if (!prev_alloc && next_alloc) {       /* Case 3 */
-        size += GET_SIZE(HDRP(PREV_BLKP(bp)));
-        PUT(FTRP(bp), PACK(size, 0));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-        bp = PREV_BLKP(bp);
+        void* prev_ptr=PREV_BLKP(obj);
+        size += GET_SIZE(HDRP(PREV_BLKP(obj)));
+        PUT(FTRP(obj), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(obj)), PACK(size, 0));
+        obj = PREV_BLKP(obj);
+        delete_empty_block(prev_ptr);
+        add_empty_block(obj);
     }
     else {                                      /* Case 4 */
-        size += GET_SIZE(HDRP(PREV_BLKP(bp))) +
-        GET_SIZE(FTRP(NEXT_BLKP(bp)));
-        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
-        bp = PREV_BLKP(bp);
+        void* next_ptr=NEXT_BLKP(obj);
+        void* prev_ptr=PREV_BLKP(obj);
+        size += GET_SIZE(HDRP(PREV_BLKP(obj)))+GET_SIZE(FTRP(NEXT_BLKP(obj)));
+        PUT(HDRP(PREV_BLKP(obj)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(obj)), PACK(size, 0));
+        obj = PREV_BLKP(obj);
+        delete_empty_block(next_ptr);
+        delete_empty_block(prev_ptr);
+        add_empty_block(obj);
     }
-    return bp;
+    return obj;
 }
 
-static void *extend_heap(size_t words)
+int bootstrap_get_page()
 {
-    char *bp;
-    size_t size;
-    /* Allocate an even number of words to maintain alignment */
-    size = (words % 2) ? (words+1) * WSIZE : words * WSIZE;
-    if ((long)(bp = mem_sbrk(size)) == -1)
-        return NULL;
-    /* Initialize free block header/footer and the epilogue header */
-    PUT(HDRP(bp), PACK(size,0));    /* Free block header */
-    PUT(FTRP(bp), PACK(size,0));    /* Free block footer */
-    PUT(HDRP(NEXT_BLKP(bp)),PACK(0, 1));   /* New epilogue header */
-
-    /* Coalesce if the previous block was free */
-    return coalesce(bp);
-}
-
-
-int mm_init(void)
-{
-    void* page_ptr;
-    page_ptr=get_page();
-    if (page_ptr == NULL)
+    void* page_ptr=NULL;
+    static uint32_t count=0;
+    if(BOOT_PAGE_NUM>count)
         return -1;
-    /*special handlement for boundry*/
-    uint32_t i;
-    for(i=0;i<3;i++)
-        PUT(page_ptr+i*SIZE,0);
-    PUT(page_ptr+i*WSIZE,PACK(0,1));
+    page_ptr=bootstrap_page_start+PAGE_SIZE*count;
 
+    /*deal with edge condition*/
+    PUT(page_ptr+2*WSIZE,PACK(0,1));
+    PUT(page_ptr+PAGE_SIZE-WSIZE,PACK(0,1));
+
+    /*set up empty list*/
+    PUT(page_ptr+3*WSIZE,PACK(PAGE_SIZE-4*WSIZE));
+    PUT(page_ptr+PAGE_SIZE-2*WSIZE,PACK(PAGE_SIZE-4*WSIZE));
+    add_empty_block(page_ptr+4*WSIZE);
     return 0;
 }
 
-void mm_free(void *bp)
-{
-    size_t size = GET_SIZE(HDRP(bp));
-
-    PUT(HDRP(bp), PACK(size, 0));
-    PUT(FTRP(bp), PACK(size, 0));
-    coalesce(bp);
-}
-
-//void *mm_malloc(size_t size)
-//{
-//    size_t asize;   /* Adjusted block size */
-//    size_t extendsize; /* Amount to extend heap if no fit */
-//    char *bp;
-//
-//    /* Ignore spurious requests */
-//    if (size == 0)
-//        return NULL;
-//
-//    /* Adjust block size to include overhead and alignment reqs. */
-//    if (size <= DSIZE)
-//        asize = 2*DSIZE;
-//    else
-//        asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
-//
-//    /* Search the free list for a fit */
-//    if ((bp = find_fit(asize)) != NULL) {
-//        place(bp, asize);
-//        return bp;
-//    }
-//
-//    /* No fit found. Get more memory and place the block */
-//    extendsize = MAX(asize,CHUNKSIZE);
-//    if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
-//        return NULL;
-//    place(bp, asize);
-//    return bp;
-//}
-
-
+/*using first fit policy*/
 void* find_fit(uint32_t size)
 {
-
+    void* ptr=NULL;
+    for(ptr=free_start;ptr!=NULL;ptr=GET_SUCC(ptr))
+    {
+        if(GET_SIZE(ptr)>=size)
+        break;
+    }
+    return ptr;
 }
 
-void* alloc_bootstrap(size_t size, gfp_t flags)
+void place(void* ptr,uint32_t size)
+{
+    uint32_t all_size=GET_SIZE(ptr);
+    if(all_size<size+ALIGN_SIZE)
+    {
+        PUT(HDRP(ptr),PACK(all_size,1));
+        PUT(FTRP(ptr),PACK(all_size,1));
+        return;
+    }
+    PUT(HDRP(ptr),PACK(size,1));
+    PUT(FTRP(ptr),PACK(size,1));
+    /*divide block*/
+    ptr=NEXT_BLKP(ptr);
+    PUT(HDRP(ptr),PACK(all_size-size,0));
+    PUT(FTRP(ptr),PACK(all_size-size,0));
+    coalesce(ptr);
+    return;
+}
+
+void* bootstrap_alloc(size_t size, gfp_t flags)
 {
     uint32_t asize=0;   /* Adjusted block size */
     uint32_t extendsize=0; /* Amount to extend heap if no fit */
-    void *bp=NULL;
+    void *obj=NULL;
 
     /* Ignore spurious requests */
     if (size == 0)
@@ -169,32 +198,56 @@ void* alloc_bootstrap(size_t size, gfp_t flags)
     asize=(asize/ALIGN_SIZE+((asize%ALIGN_SIZE)!=0))*ALIGN_SIZE;
 
     /* Search the free list for a fit */
-    if ((bp = find_fit(asize)) != NULL) {
-        place(bp, asize);
-        return bp;
+    if ((obj = find_fit(asize)) != NULL) {
+        place(obj, asize);
+        return obj;
     }
 
     /* No fit found. Get more memory and place the block */
-    extendsize = MAX(asize,CHUNKSIZE);
-    if ((bp = extend_heap(extendsize/WSIZE)) == NULL)
+    int result=0;
+    result=__getpage.get_page();
+    if(result==-1)
         return NULL;
-    place(bp, asize);
-    return bp;
+    if ((obj = find_fit(asize)) != NULL) {
+        place(obj, asize);
+        return obj;
+    }
+    return NULL;
 }
 
-void free_bootstrap(void *obj)
+void bootstrap_free(void *obj)
 {
+    size_t size = GET_SIZE(HDRP(obj));
 
+    PUT(HDRP(obj), PACK(size, 0));
+    PUT(FTRP(obj), PACK(size, 0));
+    coalesce(obj);
+    return;
+}
+
+size_t bootstrap_size(void *obj)
+{
+    if(obj==NULL)
+        return 0;
+    return (size_t)GET_SIZE(HDRP(obj));
+}
+
+int bootstrap_init(void* start)
+{
+    bootstrap_page_start=start;
+    __getpage.get_page=bootstrap_get_page;
+    return 0;
 }
 
 static inline
 int simple_allocator_bootstrap(void *pt, size_t size)
 {
     struct simple_allocator allocator_bootstrap = {
-        .alloc	= __simple_alloc,
-        .free	= __simple_free,
-        .size	= __simple_size
+        .alloc	= bootstrap_alloc,
+        .free	= bootstrap_free,
+        .size	= bootstrap_size
     };
 }
-int simple_allocator_init(void);
+
+//int simple_allocator_init(void);
 
