@@ -30,6 +30,7 @@
 #include <drivers/io/io-mem.h>
 #include <drivers/io/io-port.h>
 #include <platform.h>
+#include <aim/simple_alloc.h>
 
 #define _4MB_PAGE_SIZE (1<<22)
 static inline
@@ -51,8 +52,9 @@ __noreturn
 void master_early_init(void)
 {
 	static uint32_t entry_count=0;
+	void* boot_vmm_start=NULL;
 	if(entry_count!=0)
-		goto panic;
+		goto next_line;
 	entry_count++;
 	/* clear address-space-related callback handlers */
 	early_mapping_clear();
@@ -91,8 +93,11 @@ void master_early_init(void)
 		"movw  %%ax,%%es;":::"memory"
 	);*/
 	arch_jump_high();
+next_line:
+	boot_vmm_start=get_bootpage_start(PAGE_SIZE);
+	simple_allocator_bootstrap(boot_vmm_start,PAGE_SIZE);
+	page_allocator_init();
 	goto panic;
-
 panic:
 	/*
 	__asm__ __volatile__(

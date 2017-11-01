@@ -29,7 +29,7 @@
 #define gdt_num (3)
 #define Kern_Base (0x80000000)
 #define _4MB_PAGE_SIZE (1<<22)
-#define MAP_LENGTH (0x40000000)
+#define MAP_LENGTH (0x80000000)
 void arch_early_init(void)
 {
     static uint32_t gdt_table[2*gdt_num];

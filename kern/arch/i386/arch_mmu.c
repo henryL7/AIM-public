@@ -110,7 +110,7 @@ void mmu_init(pgindex_t *boot_page_index)
 		"nop;"
 		::"ebx"(boot_page_index):"memory"
 	);
-
+	return;
 }
 
 pgindex_t *init_pgindex(void)

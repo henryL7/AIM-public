@@ -14,8 +14,9 @@ __attribute__((visibility("hidden")))
 void* free_start=NULL;
 __attribute__((visibility("hidden")))
 void* bootstrap_page_start=NULL;
+__attribute__((visibility("hidden")))
+uint32_t bootpage_num=0;
 
-#define BOOT_PAGE_NUM (10)
 #define WSIZE (4)
 #define DSIZE (8)
 /*alignment*/
@@ -52,10 +53,10 @@ struct Getpage{
     int (*get_page)(void);
 };
 
-static int __get_page() {}
+static int __get_page() {return 0;}
 
 static struct Getpage __getpage = {
-	.get_page	__get_page
+	.get_page=__get_page
 };
 
 /*using LIFO policy*/
@@ -137,7 +138,7 @@ int bootstrap_get_page()
 {
     void* page_ptr=NULL;
     static uint32_t count=0;
-    if(BOOT_PAGE_NUM>count)
+    if(bootpage_num>count)
         return -1;
     page_ptr=bootstrap_page_start+PAGE_SIZE*count;
 
@@ -146,8 +147,8 @@ int bootstrap_get_page()
     PUT(page_ptr+PAGE_SIZE-WSIZE,PACK(0,1));
 
     /*set up empty list*/
-    PUT(page_ptr+3*WSIZE,PACK(PAGE_SIZE-4*WSIZE));
-    PUT(page_ptr+PAGE_SIZE-2*WSIZE,PACK(PAGE_SIZE-4*WSIZE));
+    PUT(page_ptr+3*WSIZE,PACK(PAGE_SIZE-4*WSIZE,0));
+    PUT(page_ptr+PAGE_SIZE-2*WSIZE,PACK(PAGE_SIZE-4*WSIZE,0));
     add_empty_block(page_ptr+4*WSIZE);
     return 0;
 }
@@ -186,7 +187,6 @@ void place(void* ptr,uint32_t size)
 void* bootstrap_alloc(size_t size, gfp_t flags)
 {
     uint32_t asize=0;   /* Adjusted block size */
-    uint32_t extendsize=0; /* Amount to extend heap if no fit */
     void *obj=NULL;
 
     /* Ignore spurious requests */
@@ -232,21 +232,36 @@ size_t bootstrap_size(void *obj)
     return (size_t)GET_SIZE(HDRP(obj));
 }
 
-int bootstrap_init(void* start)
+void* get_bootpage_start(size_t size)
 {
-    bootstrap_page_start=start;
-    __getpage.get_page=bootstrap_get_page;
-    return 0;
+    uint32_t page_num=0;
+    page_num=((uint32_t)size/PAGE_SIZE+((uint32_t)size%PAGE_SIZE!=0))*PAGE_SIZE;
+    uint32_t stack_poi,astack_poi;
+    __asm__ __volatile__ (
+        "movl %%esp,%%eax;"
+        :"=a"(stack_poi)::"memory"
+    );
+    astack_poi=stack_poi;
+    if(stack_poi%PAGE_SIZE)
+        astack_poi=((uint32_t)(stack_poi>>12)<<12)+PAGE_SIZE;
+    uint32_t page_start=0;
+    page_start=astack_poi+page_num*PAGE_SIZE;
+    __asm__ __volatile__ ("subl %%eax,%%esp;"::"a"(bootstrap_page_start-stack_poi):"memory");
+    return (void*)page_start;
 }
 
-static inline
 int simple_allocator_bootstrap(void *pt, size_t size)
 {
+    bootpage_num=((uint32_t)size/PAGE_SIZE+((uint32_t)size%PAGE_SIZE!=0))*PAGE_SIZE;
+    bootstrap_page_start=pt;
+    __getpage.get_page=bootstrap_get_page;
     struct simple_allocator allocator_bootstrap = {
         .alloc	= bootstrap_alloc,
         .free	= bootstrap_free,
         .size	= bootstrap_size
     };
+    set_simple_allocator(&allocator_bootstrap);
+    return 0;
 }
 
 //int simple_allocator_init(void);
