@@ -146,6 +146,11 @@ void buddy_free(struct pages *pages)
 }
 //addr_t buddy_get_free(void);
 
+addr_t dummy_get_free()
+{
+    return 0;
+}
+
 int page_allocator_init(void)
 {
     uint32_t mem_size=(uint32_t)get_mem_size();
@@ -159,7 +164,6 @@ int page_allocator_init(void)
     uint32_t page_start=page_table_align+PAGE_SIZE;
     pagenum=(kern_size-page_start)/PAGE_SIZE;
     uint32_t wholenum=KERN_MAX_SIZE/PAGE_SIZE;
-    uint32_t startnum=page_table_align/PAGE_SIZE;
     for(uint32_t i=0;i<wholenum;i++)
     {
         phy_mem_map[i].count=1;   
@@ -172,6 +176,41 @@ int page_allocator_init(void)
         pagesystem.size=(1<<i);
         pagesystem.first=NULL;
     }
+    struct page_allocator buddy_allocator = {
+        .alloc		= buddy_alloc,
+        .free		= buddy_free,
+        .get_free	= dummy_get_free
+    };
+    set_page_allocator(&buddy_allocator);
+    // one page should do the job
+    buddy_add(pagesystem.plist[0],(void*)page_start);
     return 0;
+}
+
+int page_allocator_move(struct simple_allocator *old)
+{
+    return 0;  // nothing to do
+}
+
+void add_memory_pages(void)
+{
+    uint32_t mem_size=(uint32_t)get_mem_size();
+    uint32_t kern_size=KERN_MAX_SIZE<mem_size?KERN_MAX_SIZE:mem_size;
+    uint32_t pagenum=0;
+    /*compute kernel code ending position, see arch_mmu.c*/
+    extern char page_table_start[];
+	uint32_t page_table_align=(uint32_t)page_table_start;
+	page_table_align+=KSTACKSIZE;
+    page_table_align=(page_table_align/PAGE_SIZE)*PAGE_SIZE+(page_table_align%PAGE_SIZE!=0)*PAGE_SIZE;
+    uint32_t page_start=page_table_align+PAGE_SIZE;
+    pagenum=(kern_size-page_start)/PAGE_SIZE;
+    page_start+=PAGE_SIZE;
+    for(uint32_t i=0;i<pagenum-1;i++)
+    {
+        // add all the avaliable pages
+        buddy_add(pagesystem.plist[0],(void*)page_start);
+        page_start+=PAGE_SIZE;
+    }
+    return ;
 }
 

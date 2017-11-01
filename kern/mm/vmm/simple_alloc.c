@@ -264,5 +264,54 @@ int simple_allocator_bootstrap(void *pt, size_t size)
     return 0;
 }
 
-//int simple_allocator_init(void);
+int init_get_page()
+{
+    void* page_ptr=NULL;
+    addr_t result=pgalloc();
+    if(result==-1)
+        return -1;
+    page_ptr=pa2kva((void*)result);
+    /*deal with edge condition*/
+    PUT(page_ptr+2*WSIZE,PACK(0,1));
+    PUT(page_ptr+PAGE_SIZE-WSIZE,PACK(0,1));
+
+    /*set up empty list*/
+    PUT(page_ptr+3*WSIZE,PACK(PAGE_SIZE-4*WSIZE,0));
+    PUT(page_ptr+PAGE_SIZE-2*WSIZE,PACK(PAGE_SIZE-4*WSIZE,0));
+    add_empty_block(page_ptr+4*WSIZE);
+    return 0;
+}
+
+void change_start()
+{
+    void* page_ptr=NULL;
+    addr_t result=pgalloc();
+    page_ptr=pa2kva((void*)result);
+    /*deal with edge condition*/
+    PUT(page_ptr+2*WSIZE,PACK(0,1));
+    PUT(page_ptr+PAGE_SIZE-WSIZE,PACK(0,1));
+
+    /*set up empty list*/
+    PUT(page_ptr+3*WSIZE,PACK(PAGE_SIZE-4*WSIZE,0));
+    PUT(page_ptr+PAGE_SIZE-2*WSIZE,PACK(PAGE_SIZE-4*WSIZE,0));
+    /*discard the page allocated by bootstrap allocator*/
+    free_start=NULL;
+    add_empty_block(page_ptr+4*WSIZE);
+    return;
+}
+
+int simple_allocator_init(void)
+{
+    __getpage.get_page=init_get_page;
+    
+    struct simple_allocator allocator_init = {
+        .alloc	= bootstrap_alloc,
+        .free	= bootstrap_free,
+        .size	= bootstrap_size
+    };
+    set_simple_allocator(&allocator_init);
+    change_start();
+    return 0;
+}
+
 

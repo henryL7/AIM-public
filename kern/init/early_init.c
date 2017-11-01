@@ -97,6 +97,8 @@ next_line:
 	boot_vmm_start=get_bootpage_start(PAGE_SIZE);
 	simple_allocator_bootstrap(boot_vmm_start,PAGE_SIZE);
 	page_allocator_init();
+	simple_allocator_init();
+	add_memory_pages();
 	goto panic;
 panic:
 	/*
