@@ -9,6 +9,7 @@
 #include <aim/mmu.h>	/* PAGE_SIZE */
 #include <aim/panic.h>
 #include <libc/string.h>
+#include <aim/pmm.h>
 
 __attribute__((visibility("hidden")))
 void* free_start=NULL;
@@ -138,12 +139,13 @@ int bootstrap_get_page()
 {
     void* page_ptr=NULL;
     static uint32_t count=0;
-    if(bootpage_num>count)
+    if(bootpage_num<count)
         return -1;
     page_ptr=bootstrap_page_start+PAGE_SIZE*count;
-
+    count+=1;
     /*deal with edge condition*/
-    PUT(page_ptr+2*WSIZE,PACK(0,1));
+    PUT(page_ptr+1*WSIZE,PACK(8,1));
+    PUT(page_ptr+2*WSIZE,PACK(8,1));
     PUT(page_ptr+PAGE_SIZE-WSIZE,PACK(0,1));
 
     /*set up empty list*/
@@ -159,7 +161,7 @@ void* find_fit(uint32_t size)
     void* ptr=NULL;
     for(ptr=free_start;ptr!=NULL;ptr=GET_SUCC(ptr))
     {
-        if(GET_SIZE(ptr)>=size)
+        if(GET_SIZE(HDRP(ptr))>=size)
         break;
     }
     return ptr;
@@ -167,7 +169,7 @@ void* find_fit(uint32_t size)
 
 void place(void* ptr,uint32_t size)
 {
-    uint32_t all_size=GET_SIZE(ptr);
+    uint32_t all_size=GET_SIZE(HDRP(ptr));
     if(all_size<size+ALIGN_SIZE)
     {
         PUT(HDRP(ptr),PACK(all_size,1));
@@ -176,6 +178,7 @@ void place(void* ptr,uint32_t size)
     }
     PUT(HDRP(ptr),PACK(size,1));
     PUT(FTRP(ptr),PACK(size,1));
+    delete_empty_block(ptr);
     /*divide block*/
     ptr=NEXT_BLKP(ptr);
     PUT(HDRP(ptr),PACK(all_size-size,0));
@@ -232,7 +235,7 @@ size_t bootstrap_size(void *obj)
     return (size_t)GET_SIZE(HDRP(obj));
 }
 
-void* get_bootpage_start(size_t size)
+/*void* get_bootpage_start(size_t size)
 {
     uint32_t page_num=0;
     page_num=((uint32_t)size/PAGE_SIZE+((uint32_t)size%PAGE_SIZE!=0))*PAGE_SIZE;
@@ -248,11 +251,11 @@ void* get_bootpage_start(size_t size)
     page_start=astack_poi+page_num*PAGE_SIZE;
     __asm__ __volatile__ ("subl %%eax,%%esp;"::"a"(bootstrap_page_start-stack_poi):"memory");
     return (void*)page_start;
-}
+}*/
 
 int simple_allocator_bootstrap(void *pt, size_t size)
 {
-    bootpage_num=((uint32_t)size/PAGE_SIZE+((uint32_t)size%PAGE_SIZE!=0))*PAGE_SIZE;
+    bootpage_num=((uint32_t)size/PAGE_SIZE);
     bootstrap_page_start=pt;
     __getpage.get_page=bootstrap_get_page;
     struct simple_allocator allocator_bootstrap = {
@@ -272,7 +275,8 @@ int init_get_page()
         return -1;
     page_ptr=pa2kva((void*)result);
     /*deal with edge condition*/
-    PUT(page_ptr+2*WSIZE,PACK(0,1));
+    PUT(page_ptr+1*WSIZE,PACK(8,1));
+    PUT(page_ptr+2*WSIZE,PACK(8,1));
     PUT(page_ptr+PAGE_SIZE-WSIZE,PACK(0,1));
 
     /*set up empty list*/
@@ -288,7 +292,8 @@ void change_start()
     addr_t result=pgalloc();
     page_ptr=pa2kva((void*)result);
     /*deal with edge condition*/
-    PUT(page_ptr+2*WSIZE,PACK(0,1));
+    PUT(page_ptr+1*WSIZE,PACK(8,1));
+    PUT(page_ptr+2*WSIZE,PACK(8,1));
     PUT(page_ptr+PAGE_SIZE-WSIZE,PACK(0,1));
 
     /*set up empty list*/

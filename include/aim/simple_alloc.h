@@ -4,7 +4,7 @@
 #ifndef __ASSEMBLER__
 
 
-void* get_bootpage_start(size_t size);
+//void* get_bootpage_start(size_t size);
 
 #endif /* !__ASSEMBLER__ */
 

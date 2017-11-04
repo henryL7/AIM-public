@@ -11,11 +11,11 @@
 #include <util.h>
 #include <aim/vmm.h>
 
-#define KERN_MAX_SIZE (0x80000000)
+#define KERN_MAX_SIZE ((uint32_t)0x80000000)
 #define PAGE_KIND_NUM (11)
 #define MB_SIZE (1<<20)
 #define MAX_PAGE_SIZE (1<<22)
-#define PAGE_NO(x) (x/PAGE_SIZE)
+#define PAGE_NO(x) ((uint32_t)x/PAGE_SIZE)
 #define PAGE_SPLIT(s,a) (a+s/2)
 
 // information for physical page
@@ -67,7 +67,7 @@ inline void buddy_remove(void* paddr)
 {
     struct buddy_page* ptr=phy_mem_map[PAGE_NO(paddr)].lru;
     if(ptr->succ!=NULL)
-        ptr->succ->pred=ptr->pred;
+        ptr->succ->prev=ptr->prev;
     if(ptr->prev!=NULL)
         ptr->prev->succ=ptr->succ;
     kfree(ptr);
@@ -75,22 +75,22 @@ inline void buddy_remove(void* paddr)
 }
 
 // add free block
-void buddy_add(struct page_head head,void* paddr)
+void buddy_add(struct page_head* head,void* paddr)
 {
-    void* buddy=compute_buddy(paddr,head.order);
-    if(phy_mem_map[PAGE_NO(buddy)].count==0&&head.order<PAGE_KIND_NUM-1)
+    void* buddy=compute_buddy(paddr,head->order);
+    if(phy_mem_map[PAGE_NO(buddy)].count==0&&head->order<PAGE_KIND_NUM-1)
     {
         buddy_remove(buddy);
-        return buddy_add(pagesystem[head.order+1],min2(paddr,buddy));
+        return buddy_add(&pagesystem.plists[head->order+1],min2(paddr,buddy));
     }
     struct buddy_page* np=kmalloc(sizeof(struct buddy_page),0);
     if(np==NULL)return;
     np->paddr=paddr;
-    if(head.first!=NULL)
-        head.first->prev=np;
-    np->succ=head.first;
+    if(head->first!=NULL)
+        head->first->prev=np;
+    np->succ=head->first;
     np->prev=NULL;
-    head.first=np;
+    head->first=np;
     phy_mem_map[PAGE_NO(paddr)].count=0;
     phy_mem_map[PAGE_NO(paddr)].flags=0;
     phy_mem_map[PAGE_NO(paddr)].lru=np;
@@ -98,23 +98,23 @@ void buddy_add(struct page_head head,void* paddr)
 }
 
 // get free block
-int buddy_get(struct page_head head,struct pages* pages)
+int buddy_get(struct page_head *head,struct pages* pages)
 {
-    if(head.fisrt=NULL)
+    if(head->first==NULL)
     {
-        if(head.order==PAGE_KIND_NUM-1)
+        if(head->order==PAGE_KIND_NUM-1)
             return -1;
-        return buddy_get(pagesystem.plists[head.order+1],pages);
+        return buddy_get(&pagesystem.plists[head->order+1],pages);
     }
-    phy_mem_map[PAGE_NO(head.first->paddr)].count+=1;
-    phy_mem_map[PAGE_NO(head.first->paddr)].flags=pages->flags;
-    pages->paddr=head.first->paddr;
-    struct buddy_page* old=head.first;
-    head.first=head.first->succ;
-    if(head.first!=NULL)
-        head.first->prev=NULL;
-    if(head.size!=pages->size)
-        buddy_add(pagesystem.plists[head.order-1],PAGE_SPLIT(head.size,old->paddr));
+    phy_mem_map[PAGE_NO(head->first->paddr)].count+=1;
+    phy_mem_map[PAGE_NO(head->first->paddr)].flags=pages->flags;
+    pages->paddr=head->first->paddr;
+    struct buddy_page* old=head->first;
+    head->first=head->first->succ;
+    if(head->first!=NULL)
+        head->first->prev=NULL;
+    if(head->size!=pages->size)
+        buddy_add(&pagesystem.plists[head->order-1],PAGE_SPLIT(head->size,old->paddr));
     kfree(old);
     return 0;
 }
@@ -126,7 +126,7 @@ inline uint32_t log2(uint32_t x)
     {
         i++;
     }
-    return i-1;
+    return i-13;
 }
 
 int buddy_alloc(struct pages *pages)
@@ -134,15 +134,15 @@ int buddy_alloc(struct pages *pages)
     if(pages->size>MAX_PAGE_SIZE)
         return -1;
     uint32_t order=log2(pages->size);
-    return buddy_get(pagesystem.plists[order],pages);
+    return buddy_get(&pagesystem.plists[order],pages);
 }
 
 void buddy_free(struct pages *pages)
 {
-    if(phy_mem_map[PAGE_NO(paddr)].count>1)
+    if(phy_mem_map[PAGE_NO(pages->paddr)].count>1)
         return;
     uint32_t order=log2(pages->size);
-    return buddy_add(pagesystem.plists[order],pages->paddr);
+    return buddy_add(&pagesystem.plists[order],pages->paddr);
 }
 //addr_t buddy_get_free(void);
 
@@ -172,9 +172,9 @@ int page_allocator_init(void)
     }
     for(uint32_t i=0;i<PAGE_KIND_NUM-1;i++)
     {
-        pagesystem.order=i;
-        pagesystem.size=(1<<i);
-        pagesystem.first=NULL;
+        pagesystem.plists[i].order=i;
+        pagesystem.plists[i].size=PAGE_SIZE*(1<<i);
+        pagesystem.plists[i].first=NULL;
     }
     struct page_allocator buddy_allocator = {
         .alloc		= buddy_alloc,
@@ -183,7 +183,7 @@ int page_allocator_init(void)
     };
     set_page_allocator(&buddy_allocator);
     // one page should do the job
-    buddy_add(pagesystem.plist[0],(void*)page_start);
+    buddy_add(&pagesystem.plists[0],(void*)page_start);
     return 0;
 }
 
@@ -208,7 +208,7 @@ void add_memory_pages(void)
     for(uint32_t i=0;i<pagenum-1;i++)
     {
         // add all the avaliable pages
-        buddy_add(pagesystem.plist[0],(void*)page_start);
+        buddy_add(&pagesystem.plists[0],(void*)page_start);
         page_start+=PAGE_SIZE;
     }
     return ;

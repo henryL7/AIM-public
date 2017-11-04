@@ -39,6 +39,8 @@ SECTIONS{
         * ( .text.__x86.get_pc_thunk.ax ) ;
         * ( .text.__x86.get_pc_thunk.bp ) ;
         * ( .text.__x86.get_pc_thunk.dx ) ;
+        * ( .text.__x86.get_pc_thunk.di ) ;
+        * ( .text.__x86.get_pc_thunk.cx ) ;
     }
     . = ALIGN (16) ;
     rodata_paddr = . - kern_offset ;
@@ -50,12 +52,14 @@ SECTIONS{
     data_paddr = . - kern_offset ;
     .data ALIGN(16): AT ( data_paddr )
     {
-        *(.data)
+        *(.data) ;
+        *(.data.rel.local) ;
     }
     . = ALIGN (16) ;
-    bss_start = . - kern_offset ;
+    
     .bss : AT ( bss_start )
     {
+        bss_start = . - kern_offset ;
         *(.bss)
         . = ALIGN (16) ;
     }
