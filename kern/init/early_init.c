@@ -70,7 +70,7 @@ __noreturn
 void master_early_init(void)
 {
 	static uint32_t entry_count=0;
-	void* boot_vmm_start=NULL;
+	char boot_vmm_start[PAGE_SIZE];
 	if(entry_count!=0)
 		goto next_line;
 	entry_count++;
@@ -112,7 +112,7 @@ void master_early_init(void)
 	);*/
 	arch_jump_high();
 next_line:
-    {
+    /*{   
 		uint32_t page_num=1;
 		uint32_t stack_poi,astack_poi;
 		__asm__ __volatile__ (
@@ -126,8 +126,8 @@ next_line:
 		page_start=astack_poi+page_num*PAGE_SIZE;
 		__asm__ __volatile__ ("subl %%eax,%%esp;"::"a"(page_start-stack_poi):"memory");
 		boot_vmm_start=page_start;
-	}
-	simple_allocator_bootstrap(boot_vmm_start,PAGE_SIZE);
+	}*/
+	simple_allocator_bootstrap((void*)boot_vmm_start,PAGE_SIZE);
 	page_allocator_init();
 	simple_allocator_init();
 	add_memory_pages();

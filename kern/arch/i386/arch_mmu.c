@@ -60,6 +60,7 @@ addr_t get_mem_size()
 		totalmem=1024+extmem;
 	else
 		totalmem=basemem;
+	kprintf("totalmem:%d\n",totalmem);
 	return (totalmem<<10);
 }
 
