@@ -31,6 +31,7 @@
 #include <drivers/io/io-port.h>
 #include <platform.h>
 #include <aim/simple_alloc.h>
+#include <aim/phypage_alloc.h>
 
 #define _4MB_PAGE_SIZE (1<<22)
 static inline
@@ -112,25 +113,13 @@ void master_early_init(void)
 	);*/
 	arch_jump_high();
 next_line:
-    /*{   
-		uint32_t page_num=1;
-		uint32_t stack_poi,astack_poi;
-		__asm__ __volatile__ (
-			"movl %%esp,%%eax;"
-			:"=a"(stack_poi)::"memory"
-		);
-		astack_poi=stack_poi;
-		if(stack_poi%PAGE_SIZE)
-			astack_poi=((stack_poi)/PAGE_SIZE)*PAGE_SIZE+PAGE_SIZE;
-		uint32_t page_start=0;
-		page_start=astack_poi+page_num*PAGE_SIZE;
-		__asm__ __volatile__ ("subl %%eax,%%esp;"::"a"(page_start-stack_poi):"memory");
-		boot_vmm_start=page_start;
-	}*/
 	simple_allocator_bootstrap((void*)boot_vmm_start,PAGE_SIZE);
 	page_allocator_init();
 	simple_allocator_init();
 	add_memory_pages();
+	test_two();
+	test_one();
+	test_two();
 	goto panic;
 panic:
 	/*
