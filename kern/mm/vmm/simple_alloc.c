@@ -156,7 +156,10 @@ int bootstrap_get_page()
 }
 
 /*using first fit policy*/
+<<<<<<< HEAD
 __attribute__( ( noinline ) )
+=======
+>>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
 void* find_fit(uint32_t size) 
 {
     void* ptr=NULL;

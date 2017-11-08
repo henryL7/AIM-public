@@ -13,7 +13,11 @@
 #include <aim/console.h>
 
 #define KERN_MAX_SIZE ((uint32_t)0x70000000)
+<<<<<<< HEAD
 #define PAGE_KIND_NUM (11)
+=======
+#define PAGE_KIND_NUM (11u)
+>>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
 #define MB_SIZE (1<<20)
 #define MAX_PAGE_SIZE (1<<22)
 #define PAGE_NO(x) ((uint32_t)x/PAGE_SIZE)
@@ -35,6 +39,8 @@ struct buddy_page{
     struct buddy_page* succ;
 };
 
+typedef struct buddy_page *buddy_ptr;
+
 struct page_head{
     struct buddy_page* first;
     uint32_t order;
@@ -45,6 +51,13 @@ __attribute__((visibility("hidden")))
 struct page_system{
     struct page_head plists[PAGE_KIND_NUM]; 
 }pagesystem;
+
+__attribute__((visibility("hidden")))
+struct pointer_system{
+    struct buddy_page* p[MB_SIZE];
+    uint32_t head;
+    uint32_t tail;
+}pointers;
 
 //inline void* buddy_split(uint32_t size,void* paddr)
 //{
@@ -61,17 +74,57 @@ static void* compute_buddy(void*paddr,uint32_t order )
 {
     uint32_t mask=1;
     return (void*)(((uint32_t)paddr)^(mask<<(order+12)));
+<<<<<<< HEAD
+=======
+}
+
+inline uint32_t log2(uint32_t x)
+{
+    uint32_t i=0;
+    while(x>>i)
+    {
+        i++;
+    }
+    return i-13;
+}
+
+buddy_ptr get_pointer(void)
+{
+    if(pointers.head==pointers.tail)
+    {
+        kprintf("empty\n");
+        return NULL;
+    }
+    buddy_ptr newp=pointers.p[pointers.head];
+    pointers.head=(pointers.head+1)%MB_SIZE;
+    return newp;
+}
+
+void add_pointer(buddy_ptr ptr)
+{
+    pointers.p[pointers.tail]=ptr;
+    pointers.tail=(pointers.tail+1)%MB_SIZE;
+    return;
+>>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
 }
 
 // remove free block
 void buddy_remove(void* paddr)
 {
     struct buddy_page* ptr=phy_mem_map[PAGE_NO(paddr)].lru;
+    for(uint32_t i=0;i<PAGE_KIND_NUM;i++)
+    {
+        if(ptr==pagesystem.plists[i].first)
+        {
+            pagesystem.plists[i].first=ptr->succ;
+            break;
+        } 
+    }
     if(ptr->succ!=NULL)
         ptr->succ->prev=ptr->prev;
     if(ptr->prev!=NULL)
         ptr->prev->succ=ptr->succ;
-    kfree(ptr);
+    add_pointer(ptr);
     return;
 }
 
@@ -79,16 +132,31 @@ void buddy_remove(void* paddr)
 void buddy_add(struct page_head* head,void* paddr)
 {
     uint32_t mask=1;
+<<<<<<< HEAD
     void* buddy=(void*)(((uint32_t)paddr)^(mask<<(head->order+12)));
     if(phy_mem_map[PAGE_NO(buddy)].count==0&&head->order<PAGE_KIND_NUM-1)
     {
         phy_mem_map[PAGE_NO(buddy)].count=1;
         buddy_remove(buddy);
         return buddy_add(&pagesystem.plists[head->order+1],min2(paddr,buddy));
+=======
+    uint32_t buddy=(((uint32_t)paddr)^(mask<<(head->order+12)));
+    //kprintf("buddy_add order:%x\n",head->order);
+    if(head->order<(uint32_t)(PAGE_KIND_NUM-1))
+    {
+        if(phy_mem_map[PAGE_NO(buddy)].count==0)
+        {
+            phy_mem_map[PAGE_NO(buddy)].count=1;
+            buddy_remove(buddy);
+            return buddy_add(&pagesystem.plists[head->order+1],min2(paddr,buddy));
+        }
+>>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
     }
-    struct buddy_page* np=kmalloc(sizeof(struct buddy_page),0);
+    struct buddy_page* np=get_pointer();
     if(np==NULL)return;
     np->paddr=paddr;
+    if((uint32_t)np->paddr==0)
+    kprintf("buddy addr:%x,paddr: %x,order: %x,size:%x\n",buddy,(uint32_t)paddr,head->order,head->size);
     if(head->first!=NULL)
         head->first->prev=np;
     np->succ=head->first;
@@ -111,17 +179,18 @@ int buddy_get(struct page_head *head,struct pages* pages)
     }
     phy_mem_map[PAGE_NO(head->first->paddr)].count+=1;
     phy_mem_map[PAGE_NO(head->first->paddr)].flags=pages->flags;
-    pages->paddr=head->first->paddr;
+    pages->paddr=(addr_t)head->first->paddr;
     struct buddy_page* old=head->first;
     head->first=head->first->succ;
     if(head->first!=NULL)
         head->first->prev=NULL;
-    if(head->size!=pages->size)
+    if(head->size!=(uint32_t)pages->size)
         buddy_add(&pagesystem.plists[head->order-1],PAGE_SPLIT(head->size,old->paddr));
     kfree(old);
     return 0;
 }
 
+<<<<<<< HEAD
 uint32_t log2(uint32_t x)
 {
     uint32_t i=0;
@@ -131,6 +200,8 @@ uint32_t log2(uint32_t x)
     }
     return i-13;
 }
+=======
+>>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
 
 int buddy_alloc(struct pages *pages)
 {
@@ -173,7 +244,7 @@ int page_allocator_init(void)
         phy_mem_map[i].lru=NULL;
         phy_mem_map[i].flags=0;
     }
-    for(uint32_t i=0;i<PAGE_KIND_NUM-1;i++)
+    for(uint32_t i=0;i<PAGE_KIND_NUM;i++)
     {
         pagesystem.plists[i].order=i;
         pagesystem.plists[i].size=PAGE_SIZE*(1<<i);
@@ -185,7 +256,10 @@ int page_allocator_init(void)
         .get_free	= dummy_get_free
     };
     set_page_allocator(&buddy_allocator);
-    // one page should do the job
+    // init one page should do the job
+    buddy_ptr ptr=kmalloc(sizeof(struct buddy_page),0);
+    if(ptr!=NULL)
+    add_pointer(ptr);
     buddy_add(&pagesystem.plists[0],(void*)page_start);
     return 0;
 }
@@ -193,6 +267,20 @@ int page_allocator_init(void)
 int page_allocator_move(struct simple_allocator *old)
 {
     return 0;  // nothing to do
+}
+
+// create some pointers with the first page available 
+void pointers_init()
+{
+    pointers.head=0;
+    pointers.tail=0; // discard the pointer allocated from bootstrap
+    for(uint32_t i=0;i<50;i++)
+    {
+        buddy_ptr ptr=kmalloc(sizeof(struct buddy_page),0);
+        if(ptr==NULL)continue;
+        add_pointer(ptr);
+    }
+    return;
 }
 
 void add_memory_pages(void)
@@ -209,16 +297,65 @@ void add_memory_pages(void)
     pagenum=(kern_size-page_start)/PAGE_SIZE;
     page_start+=PAGE_SIZE;
     kprintf("pagenum: %d\n",pagenum);
+<<<<<<< HEAD
+=======
+    pointers_init();
+>>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
     for(uint32_t i=0;i<pagenum-1;i++)
     {
         // add all the avaliable pages
         buddy_add(&pagesystem.plists[0],(void*)page_start);
         page_start+=PAGE_SIZE;
+<<<<<<< HEAD
         if(i%1000==0)
         kprintf("no : %d, page_addr: %x\n",i,page_start);
         if(i==479213)
         kprintf("no : %d, page_addr: %x\n",i,page_start);
+=======
+        buddy_ptr ptr=kmalloc(sizeof(struct buddy_page),0);
+        if(ptr!=NULL)
+        add_pointer(ptr);
+>>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
     }
     return ;
 }
 
+void test_one()
+{
+    for(uint32_t i=0;i<PAGE_KIND_NUM;i++)
+    {
+        struct pages npage={
+            .paddr=NULL,
+            .size=(lsize_t)(PAGE_SIZE*(1<<i)),
+            .flags=0
+        };
+        buddy_alloc(&npage);
+        kprintf("time1: addr: 0x%x, size: 0x%x\n",(uint32_t)npage.paddr,(uint32_t)npage.size);
+        buddy_free(&npage);
+        buddy_alloc(&npage);
+        kprintf("time2: addr: 0x%x, size: 0x%x\n",(uint32_t)npage.paddr,(uint32_t)npage.size);
+        buddy_free(&npage);
+    }
+    return;
+}
+
+void test_two()
+{
+    volatile uint32_t pagecount=0;
+    for(uint32_t i=0;i<PAGE_KIND_NUM;i++)
+    {
+        struct buddy_page* p;
+        kprintf("size :0x%x,order: 0x%x\n",pagesystem.plists[i].size,pagesystem.plists[i].order);
+        for(p=pagesystem.plists[i].first;p!=NULL;p=p->succ)
+        {
+            pagecount+=pagesystem.plists[i].size/PAGE_SIZE;
+            uint32_t mask=((uint32_t)1<<(pagesystem.plists[i].order+12));
+            mask-=1;
+            if(((uint32_t)(p->paddr)&mask)!=0)
+            kprintf("error at %x order: %d\n",p->paddr,pagesystem.plists[i].order);
+            kprintf("order:%d, addr 0x%x\n",i,(uint32_t)p->paddr);
+        }
+    }
+    kprintf("page count:%d\n",pagecount);
+    return;
+}
