@@ -13,11 +13,7 @@
 #include <aim/console.h>
 
 #define KERN_MAX_SIZE ((uint32_t)0x70000000)
-<<<<<<< HEAD
-#define PAGE_KIND_NUM (11)
-=======
 #define PAGE_KIND_NUM (11u)
->>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
 #define MB_SIZE (1<<20)
 #define MAX_PAGE_SIZE (1<<22)
 #define PAGE_NO(x) ((uint32_t)x/PAGE_SIZE)
@@ -74,8 +70,6 @@ static void* compute_buddy(void*paddr,uint32_t order )
 {
     uint32_t mask=1;
     return (void*)(((uint32_t)paddr)^(mask<<(order+12)));
-<<<<<<< HEAD
-=======
 }
 
 inline uint32_t log2(uint32_t x)
@@ -105,7 +99,6 @@ void add_pointer(buddy_ptr ptr)
     pointers.p[pointers.tail]=ptr;
     pointers.tail=(pointers.tail+1)%MB_SIZE;
     return;
->>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
 }
 
 // remove free block
@@ -132,14 +125,6 @@ void buddy_remove(void* paddr)
 void buddy_add(struct page_head* head,void* paddr)
 {
     uint32_t mask=1;
-<<<<<<< HEAD
-    void* buddy=(void*)(((uint32_t)paddr)^(mask<<(head->order+12)));
-    if(phy_mem_map[PAGE_NO(buddy)].count==0&&head->order<PAGE_KIND_NUM-1)
-    {
-        phy_mem_map[PAGE_NO(buddy)].count=1;
-        buddy_remove(buddy);
-        return buddy_add(&pagesystem.plists[head->order+1],min2(paddr,buddy));
-=======
     uint32_t buddy=(((uint32_t)paddr)^(mask<<(head->order+12)));
     //kprintf("buddy_add order:%x\n",head->order);
     if(head->order<(uint32_t)(PAGE_KIND_NUM-1))
@@ -150,7 +135,6 @@ void buddy_add(struct page_head* head,void* paddr)
             buddy_remove(buddy);
             return buddy_add(&pagesystem.plists[head->order+1],min2(paddr,buddy));
         }
->>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
     }
     struct buddy_page* np=get_pointer();
     if(np==NULL)return;
@@ -190,18 +174,6 @@ int buddy_get(struct page_head *head,struct pages* pages)
     return 0;
 }
 
-<<<<<<< HEAD
-uint32_t log2(uint32_t x)
-{
-    uint32_t i=0;
-    while(x>>i)
-    {
-        i++;
-    }
-    return i-13;
-}
-=======
->>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
 
 int buddy_alloc(struct pages *pages)
 {
@@ -297,25 +269,15 @@ void add_memory_pages(void)
     pagenum=(kern_size-page_start)/PAGE_SIZE;
     page_start+=PAGE_SIZE;
     kprintf("pagenum: %d\n",pagenum);
-<<<<<<< HEAD
-=======
     pointers_init();
->>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
     for(uint32_t i=0;i<pagenum-1;i++)
     {
         // add all the avaliable pages
         buddy_add(&pagesystem.plists[0],(void*)page_start);
         page_start+=PAGE_SIZE;
-<<<<<<< HEAD
-        if(i%1000==0)
-        kprintf("no : %d, page_addr: %x\n",i,page_start);
-        if(i==479213)
-        kprintf("no : %d, page_addr: %x\n",i,page_start);
-=======
         buddy_ptr ptr=kmalloc(sizeof(struct buddy_page),0);
         if(ptr!=NULL)
         add_pointer(ptr);
->>>>>>> 15c64576b5f25b850eba8213c55eb7bfb6487e1c
     }
     return ;
 }
