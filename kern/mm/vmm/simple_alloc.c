@@ -33,12 +33,12 @@ uint32_t bootpage_num=0;
 
 /* Read and write the prev and succ pointer*/
 #define GET_PREV(p) (*(unsigned int *)(p))
-#define GET_SUCC(p) (*((unsigned int *)(p)+WSIZE))
+#define GET_SUCC(p) (*((unsigned int *)(p+WSIZE)))
 #define PUT_PREV(p,val) (*(unsigned int *)(p) = (val))
-#define PUT_SUCC(p,val) (*((unsigned int *)(p)+WSIZE) = (val))
+#define PUT_SUCC(p,val) (*((unsigned int *)(p+WSIZE)) = (val))
 
 /* Read the size and allocated fields from address p */
-#define GET_SIZE(p) (GET(p) & ~0x7)
+#define GET_SIZE(p) (GET(p) & ~(0x7))
 #define GET_ALLOC(p) (GET(p) & 0x1)
 
 /* Given block ptr bp, compute address of its header and footer */
@@ -156,7 +156,8 @@ int bootstrap_get_page()
 }
 
 /*using first fit policy*/
-void* find_fit(uint32_t size)
+__attribute__( ( noinline ) )
+void* find_fit(uint32_t size) 
 {
     void* ptr=NULL;
     for(ptr=free_start;ptr!=NULL;ptr=GET_SUCC(ptr))
@@ -174,6 +175,7 @@ void place(void* ptr,uint32_t size)
     {
         PUT(HDRP(ptr),PACK(all_size,1));
         PUT(FTRP(ptr),PACK(all_size,1));
+        delete_empty_block(ptr);
         return;
     }
     PUT(HDRP(ptr),PACK(size,1));
