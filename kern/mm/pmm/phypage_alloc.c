@@ -60,13 +60,13 @@ struct pointer_system{
 //    return (void*)((uint32_t)paddr+size/2));
 //}
 
-void page_mark(void* paddr)
+inline void page_mark(void* paddr)
 {
     phy_mem_map[PAGE_NO(paddr)].count+=1;
     return;
 }
 
-static void* compute_buddy(void*paddr,uint32_t order )
+inline void* compute_buddy(void*paddr,uint32_t order )
 {
     uint32_t mask=1;
     return (void*)(((uint32_t)paddr)^(mask<<(order+12)));
@@ -105,6 +105,8 @@ void add_pointer(buddy_ptr ptr)
 void buddy_remove(void* paddr)
 {
     struct buddy_page* ptr=phy_mem_map[PAGE_NO(paddr)].lru;
+    if(ptr==NULL)
+    return;
     for(uint32_t i=0;i<PAGE_KIND_NUM;i++)
     {
         if(ptr==pagesystem.plists[i].first)
@@ -185,6 +187,8 @@ int buddy_alloc(struct pages *pages)
 
 void buddy_free(struct pages *pages)
 {
+    if(pages->paddr>KERN_MAX_SIZE)
+    return;
     if(phy_mem_map[PAGE_NO(pages->paddr)].count>1)
         return;
     uint32_t order=log2(pages->size);
