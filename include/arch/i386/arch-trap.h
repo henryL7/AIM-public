@@ -71,6 +71,7 @@ struct gatedesc {
   unsigned int off_31_16 : 16;  // high bits of offset in segment
 }__attribute__((packed));
 
+void trap_test1(void);
 #endif	/* !__ASSEMBLER__ */
 
 #endif /* _ARCH_TRAP_H */

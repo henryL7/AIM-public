@@ -133,7 +133,7 @@ void trap_init()
     __asm__ __volatile__ (
         "pushl %%ecx;"
         "pushw %%bx;"
-        "lgdtl (%%esp);"
+        "lidtl (%%esp);"
         "popw %%bx;"
         "popl %%ebx;"
         "sti;"
@@ -161,15 +161,24 @@ void trap_return(struct trapframe *tf)
 {
     uint32_t tfend=(uint32_t)tf+sizeof(struct trapframe);
     __asm__ __volatile__(
-        "subl %%esp,%%eax;"
-        "addl %%eax,%%esp;"
+        "/*subl %%esp,%%eax;*/"
+        "movl %%eax,%%esp;"
         "popal;"
         "popl %%gs;"
         "popl %%fs;"
         "popl %%es;"
         "popl %%ds;"
-        "addl $0x8, %%esp;  # trapno and errcode"
+        "addl $0x8, %%esp; "
         "iret;"
-		::"a"(tfend):"memory");
+		::"a"(tf):"memory");
 	panic("trap_return fail");
+}
+
+void trap_test1()
+{
+	__asm__ __volatile__(
+		"movl $0xff,%eax;"
+		"int $0x80;"
+	);
+    return;
 }

@@ -83,6 +83,7 @@ next_line:
 	simple_allocator_init();
 	add_memory_pages();
 	trap_init();
+	trap_test1();
 	goto panic;
 panic:
 	/*
