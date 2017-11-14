@@ -32,6 +32,7 @@
 #include <platform.h>
 #include <aim/simple_alloc.h>
 #include <aim/phypage_alloc.h>
+#include <aim/trap.h>
 
 #define _4MB_PAGE_SIZE (1<<22)
 static inline
@@ -48,24 +49,6 @@ int early_devices_init(void)
 #endif /* IO_PORT_ROOT */
 	return 0;
 }
-/*
-inline void* get_bootpage_start(size_t size)
-{
-    uint32_t page_num=0;
-    page_num=((uint32_t)size/PAGE_SIZE+((uint32_t)size%PAGE_SIZE!=0))*PAGE_SIZE;
-    uint32_t stack_poi,astack_poi;
-    __asm__ __volatile__ (
-        "movl %%esp,%%eax;"
-        :"=a"(stack_poi)::"memory"
-    );
-    astack_poi=stack_poi;
-    if(stack_poi%PAGE_SIZE)
-        astack_poi=((uint32_t)(stack_poi>>12)<<12)+PAGE_SIZE;
-    uint32_t page_start=0;
-    page_start=astack_poi+page_num*PAGE_SIZE;
-    __asm__ __volatile__ ("subl %%eax,%%esp;"::"a"(page_start-stack_poi):"memory");
-    return (void*)page_start;
-}*/
 
 __noreturn
 void master_early_init(void)
@@ -93,34 +76,13 @@ void master_early_init(void)
 	kputs("Hello, world!\n");
 	kprintf("Hello world\n");
 	arch_init_mmu();
-	/*__asm__ __volatile__(
-		"subl $0xc,%%esp;"
-		"sgdtl (%%esp);"
-		"popw %%bx;"
-		"popl %%eax;"
-		"addl $0x80000000,%%eax;"
-		"pushl %%eax;"
-		"pushw %%bx;"
-		"lgdtl (%%esp);"
-		"ljmpl $0x8,$next_line;"
-		"next_line:;"
-		"movl $0x80000000,%%ebx;"
-		"addl %%ebx,%%ebp;"
-		"addl %%ebx,%%esp;"
-		"movw  $0x10,%%ax;"     
-		"movw  %%ax,%%ds;"
-		"movw  %%ax,%%ss;"
-		"movw  %%ax,%%es;":::"memory"
-	);*/
 	arch_jump_high();
 next_line:
 	simple_allocator_bootstrap((void*)boot_vmm_start,PAGE_SIZE);
 	page_allocator_init();
 	simple_allocator_init();
 	add_memory_pages();
-	test_two();
-	test_one();
-	test_two();
+	trap_init();
 	goto panic;
 panic:
 	/*
