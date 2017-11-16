@@ -14,6 +14,7 @@ __attribute__((visibility("hidden")))
 struct gatedesc IDT[INTER_NUM];
 
 // use the impletation in xv6
+
 // Set up a normal interrupt/trap gate descriptor.
 // - istrap: 1 for a trap (= exception) gate, 0 for an interrupt gate.
 //   interrupt gate clears FL_IF, trap gate leaves FL_IF alone
@@ -39,7 +40,7 @@ struct gatedesc IDT[INTER_NUM];
 
 void init_8259A()
 {
-    // relocate the interuption table
+    // relocate the interrupt table
     outb(0x20,0x11);
     outb(0x21,0x20);
     outb(0x21,0x04);
@@ -48,7 +49,7 @@ void init_8259A()
     outb(0xa1,0x28);
     outb(0xa1,0x04);
     outb(0xa1,0x01);
-    // mask interuption
+    // mask interrupt
     outb(0x21,0Xff);
     outb(0xa1,0xff);
     return;
