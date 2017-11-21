@@ -27,7 +27,7 @@
  * linker script.
  */
 
-kern_offset = 0x80000000 ;
+kern_offset = KERN_BASE ;
 master_early_entry -= kern_offset ;
 ENTRY(master_early_entry)
 SECTIONS{
@@ -56,7 +56,17 @@ SECTIONS{
         *(.data.rel.local) ;
     }
     . = ALIGN (16) ;
-    
+    .init : AT ( initearly_start_p )
+    {
+        initearly_start_p = . - kern_offset ; 
+        initearly_start = .  ; 
+         *(.init.early*) ;
+        initearly_end = .  ;
+        init_start = .  ; 
+         *(.init.norm*) ;
+        init_end = .  ;
+    }
+    . = ALIGN (16) ;
     .bss : AT ( bss_start )
     {
         bss_start = . - kern_offset ;

@@ -33,6 +33,7 @@
 #include <aim/simple_alloc.h>
 #include <aim/phypage_alloc.h>
 #include <aim/trap.h>
+#include <aim/initcalls.h>
 
 #define _4MB_PAGE_SIZE (1<<22)
 static inline
@@ -83,7 +84,8 @@ next_line:
 	simple_allocator_init();
 	add_memory_pages();
 	trap_init();
-	trap_test1();
+	do_early_initcalls();
+	do_initcalls();
 	goto panic;
 panic:
 	/*
