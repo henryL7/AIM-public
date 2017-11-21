@@ -27,5 +27,49 @@
  * linker script.
  */
 
-ENTRY(_start)
+kern_offset = 0x80000000 ;
+master_early_entry -= kern_offset ;
+ENTRY(master_early_entry)
+SECTIONS{
+    .text KERN_BASE + KERN_START : AT ( KERN_START )
+    {
+        * ( .text ) ;
+        * ( .text.__x86.get_pc_thunk.bx ) ;
+        * ( .text.__x86.get_pc_thunk.si ) ;
+        * ( .text.__x86.get_pc_thunk.ax ) ;
+        * ( .text.__x86.get_pc_thunk.bp ) ;
+        * ( .text.__x86.get_pc_thunk.dx ) ;
+        * ( .text.__x86.get_pc_thunk.di ) ;
+        * ( .text.__x86.get_pc_thunk.cx ) ;
+    }
+    . = ALIGN (16) ;
+    rodata_paddr = . - kern_offset ;
+    .rodata : AT ( rodata_paddr )
+    {
+        *(.rodata)
+    }
+    . = ALIGN (16) ;
+    data_paddr = . - kern_offset ;
+    .data ALIGN(16): AT ( data_paddr )
+    {
+        *(.data) ;
+        *(.data.rel.local) ;
+    }
+    . = ALIGN (16) ;
+    
+    .bss : AT ( bss_start )
+    {
+        bss_start = . - kern_offset ;
+        *(.bss)
+        . = ALIGN (16) ;
+    }
+    bss_end = . - kern_offset ;
+    kernel_end = . ;
+    page_table_start = . - kern_offset ;
+    /DISCARD/ :
+    {
+        *(.eh_frame)
+        *(.comment)
+    }
+}
 

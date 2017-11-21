@@ -22,6 +22,9 @@
 #ifndef __ASSEMBLER__
 
 void arch_early_init(void);
+void arch_init_mmu(void);
+void master_early_init(void);
+void arch_jump_high(void);
 
 #endif /* !__ASSEMBLER__ */
 

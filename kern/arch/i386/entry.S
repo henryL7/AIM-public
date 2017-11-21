@@ -23,5 +23,50 @@
 .text
 
 .globl _start
+.hidden _start
+.globl master_early_entry
+.hidden master_early_entry
+.weak bss_start
+.weak bss_end
+
+master_early_entry:
+call _start
+
 _start:
 
+/*disable interrupts*/
+cli 
+
+/*cause all subsequent string operations to increment the index registers*/
+cld
+
+
+/*set up stack-segment register*/
+movl $bss_end,%esp  
+addl $stack_size,%esp
+movl %esp,%ebp    
+
+/*clear bss*/
+
+movl $bss_start,%ebx
+movl $bss_end,%edx
+
+clearbss:
+
+movb $0x0,(%ebx)
+cmpl %ebx,%edx
+je L1
+incl %ebx
+jmp clearbss
+
+L1:
+
+call master_early_init
+
+
+.data
+
+.local stack_addr 
+stack_size = KSTACKSIZE
+.local kern_offset
+kern_offset = 0x80000000
