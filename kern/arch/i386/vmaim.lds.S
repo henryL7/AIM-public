@@ -63,7 +63,14 @@ SECTIONS{
          *(.init.early*) ;
         initearly_end = .  ;
         init_start = .  ; 
-         *(.init.norm*) ;
+        *(.init.norm0) ;
+        *(.init.norm1) ;
+        *(.init.norm2) ;
+        *(.init.norm3) ;
+        *(.init.norm4) ;
+        *(.init.norm5) ;
+        *(.init.norm6) ; 
+        *(.init.norm7) ;
         init_end = .  ;
     }
     . = ALIGN (16) ;

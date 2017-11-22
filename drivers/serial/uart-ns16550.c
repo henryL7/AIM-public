@@ -25,7 +25,10 @@
 #include <aim/console.h>
 #include <aim/device.h>
 #include <aim/mmu.h>
-
+#include <aim/initcalls.h>
+#include <errno.h>
+#include <sys/param.h>
+#include <aim/gfp.h>
 #include <uart-ns16550-hw.h>
 
 #ifdef i386
@@ -148,6 +151,116 @@ int __uart_ns16550_putchar(struct chr_device *inst, unsigned char c)
 	return 0;
 }
 
+static
+void __uart_ns16550_init_kernel(struct chr_device *inst)
+{
+	struct bus_device *bus = inst->bus;
+	bus_write_fp bus_write8 = bus->bus_driver.get_write_fp(bus, 8);
+
+	if (bus_write8 == NULL)
+		return;		/* should panic? */
+
+	/* TODO: check if the following configuration works across all
+	 * UARTs */
+	bus_write8(bus, inst->base, UART_FIFO_CONTROL,
+	    UART_FCR_RTB_4 | UART_FCR_RST_TRANSMIT | UART_FCR_RST_RECEIVER |
+	    UART_FCR_ENABLE);
+	bus_write8(bus, inst->base, UART_LINE_CONTROL, UART_LCR_DLAB);
+	bus_write8(bus, inst->base, UART_DIVISOR_LSB,
+	    (UART_FREQ / UART_BAUDRATE) & 0xff);
+	bus_write8(bus, inst->base, UART_DIVISOR_MSB,
+	    ((UART_FREQ / UART_BAUDRATE) >> 8) & 0xff);
+	bus_write8(bus, inst->base, UART_LINE_CONTROL,
+	    UART_LCR_DATA_8BIT |
+	    UART_LCR_STOP_1BIT |
+	    UART_LCR_PARITY_NONE);
+}
+
+static
+void __uart_ns16550_enable_kernel(struct chr_device *inst)
+{
+	struct bus_device *bus = inst->bus;
+	bus_write_fp bus_write8 = bus->bus_driver.get_write_fp(bus, 8);
+
+	if (bus_write8 == NULL)
+		return;		/* should panic? */
+
+	bus_write8(bus, inst->base, UART_MODEM_CONTROL,
+	    UART_MCR_RTSC | UART_MCR_DTRC);
+}
+
+static
+void __uart_ns16550_disable_kernel(struct chr_device *inst)
+{
+	struct bus_device *bus = inst->bus;
+	bus_write_fp bus_write8 = bus->bus_driver.get_write_fp(bus, 8);
+
+	if (bus_write8 == NULL)
+		return;		/* should panic? */
+
+	bus_write8(bus, inst->base, UART_MODEM_CONTROL, 0);
+}
+
+static
+void __uart_ns16550_enable_interrupt_kernel(struct chr_device *inst)
+{
+	struct bus_device *bus = inst->bus;
+	bus_write_fp bus_write8 = bus->bus_driver.get_write_fp(bus, 8);
+
+	if (bus_write8 == NULL)
+		return;		/* should panic? */
+
+	bus_write8(bus, inst->base, UART_INTR_ENABLE, UART_IER_RBFI);
+}
+
+static
+void __uart_ns16550_disable_interrupt_kernel(struct chr_device *inst)
+{
+	struct bus_device *bus = inst->bus;
+	bus_write_fp bus_write8 = bus->bus_driver.get_write_fp(bus, 8);
+
+	if (bus_write8 == NULL)
+		return;		/* should panic? */
+
+	bus_write8(bus, inst->base, UART_INTR_ENABLE, 0);
+}
+
+static
+unsigned char __uart_ns16550_getchar_kernel(struct chr_device *inst)
+{
+	struct bus_device *bus = inst->bus;
+	bus_read_fp bus_read8 = bus->bus_driver.get_read_fp(bus, 8);
+	uint64_t buf;
+
+	if (bus_read8 == NULL)
+		return 0;		/* should panic? */
+	do {
+		bus_read8(bus, inst->base, UART_LINE_STATUS, &buf);
+	} while (!(buf & UART_LSR_DATA_READY));
+
+	bus_read8(bus, inst->base, UART_RCV_BUFFER, &buf);
+	return (unsigned char)buf;
+}
+
+static
+int __uart_ns16550_putchar_kernel(struct chr_device *inst, unsigned char c)
+{
+	struct bus_device *bus = inst->bus;
+	bus_read_fp bus_read8 = bus->bus_driver.get_read_fp(bus, 8);
+	bus_write_fp bus_write8 = bus->bus_driver.get_write_fp(bus, 8);
+	uint64_t buf;
+
+	if (bus_read8 == NULL || bus_write8 == NULL)
+		return EOF;
+
+	do {
+		bus_read8(bus, inst->base, UART_LINE_STATUS, &buf);
+	} while (!(buf & UART_LSR_THRE));
+
+	bus_write8(bus, inst->base, UART_TRANS_HOLD, c);
+	return 0;
+}
+
 /* Meant to register to kernel, so this interface routine is static */
 static inline
 int early_console_putchar(int c)
@@ -195,3 +308,53 @@ int __early_console_init(struct bus_device *bus, addr_t base, addr_t mapped_base
 
 #endif /* RAW */
 
+
+static struct chr_driver drv;
+
+static int __new(struct devtree_entry *entry)
+{
+	/* default implementation... */
+	return -EEXIST;
+}
+
+static struct chr_driver drv = {
+	.class = DEVCLASS_CHR,
+	.getc=__uart_ns16550_getchar_kernel,
+	.putc=__uart_ns16550_putchar_kernel,
+	.new=__new,
+};
+
+static int __driver_init(void)
+{
+	struct chr_device *dev;
+	register_driver(NOMAJOR, &drv);
+	dev = kmalloc(sizeof(*dev), GFP_ZERO);
+	dev->bus=(struct bus_device *)dev_from_name("portio");
+	dev->base=UART_BASE;
+	__uart_ns16550_init_kernel(dev);
+	__uart_ns16550_enable_kernel(dev);
+	initdev(dev, DEVCLASS_CHR, "serial", NODEV, &drv);
+	dev_add(dev);
+	return 0;
+}
+INITCALL_DEV(__driver_init);
+
+static struct chr_device *test_dev;
+
+static inline
+int test_console_putchar(int c)
+{
+	__uart_ns16550_putchar(&__early_uart_ns16550, c+1);
+	return 0;
+}
+
+void test_console()
+{
+	kputchar('a');
+	kputchar('\n');
+	test_dev = (struct chr_device *)dev_from_name("serial");
+	set_console(test_console_putchar, DEFAULT_KPUTS);
+	kputchar('a');
+	kputchar('\n');
+	return;
+}

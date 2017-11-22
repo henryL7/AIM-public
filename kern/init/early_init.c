@@ -34,6 +34,7 @@
 #include <aim/phypage_alloc.h>
 #include <aim/trap.h>
 #include <aim/initcalls.h>
+#include <drivers/serial/uart-ns16550.h>
 
 #define _4MB_PAGE_SIZE (1<<22)
 static inline
@@ -86,6 +87,7 @@ next_line:
 	trap_init();
 	do_early_initcalls();
 	do_initcalls();
+	test_console();
 	goto panic;
 panic:
 	/*
