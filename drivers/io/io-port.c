@@ -279,6 +279,7 @@ static int __driver_init(void)
 	register_driver(NOMAJOR, &drv);
 #ifdef IO_PORT_ROOT
 	portio_bus = kmalloc(sizeof(*portio_bus), GFP_ZERO);
+	portio_bus->addr_width = 32;
 	initdev(portio_bus, DEVCLASS_BUS, "portio", NODEV, &drv);
 	dev_add(portio_bus);
 #endif

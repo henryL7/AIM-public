@@ -344,7 +344,7 @@ static struct chr_device *test_dev;
 static inline
 int test_console_putchar(int c)
 {
-	__uart_ns16550_putchar(&__early_uart_ns16550, c+1);
+	__uart_ns16550_putchar(test_dev, c+1); // modify the character to show the difference
 	return 0;
 }
 
