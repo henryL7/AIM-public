@@ -25,7 +25,9 @@ SRCS = \
 	memcpy.c \
 	memset.c \
 	snprintf.c \
-	strcmp.c
+	strcmp.c \
+	memcmp.c \
+	strlcpy.c
 
 noinst_HEADERS = \
 	stdarg.h \

@@ -19,33 +19,42 @@
 static inline
 uint8_t inb(uint16_t port)
 {
-	return 0;
+	uint8_t result=0;
+	__asm__ __volatile__ ("inb (%%dx)":"=a"(result):"d"(port):"memory");
+	return result;
 }
 
 static inline
 uint16_t inw(uint16_t port)
 {
-	return 0;
+	uint16_t result=0;
+	__asm__ __volatile__ ("inw (%%dx)":"=a"(result):"d"(port):"memory");
+	return result;
 }
 
 static inline
 uint32_t inl(uint16_t port)
 {
-	return 0;
+	uint32_t result=0;
+	__asm__ __volatile__ ("inl (%%dx)":"=a"(result):"d"(port):"memory");
+	return result;
 }
 
 static inline
 void outb(uint16_t port, uint8_t data)
 {
+	__asm__ __volatile__ ("outb (%%dx)"::"a"(data),"dx"(port):"memory");
 }
 
 static inline
-void outw(uint16_t port, uint8_t data)
+void outw(uint16_t port, uint16_t data)
 {
+	__asm__ __volatile__ ("outw (%%dx)"::"a"(data),"dx"(port):"memory");
 }
 
 static inline
-void outl(uint16_t port, uint8_t data)
+void outl(uint16_t port, uint32_t data)
 {
+	__asm__ __volatile__ ("outl (%%dx)"::"a"(data),"dx"(port):"memory");
 }
 

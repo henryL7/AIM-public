@@ -28,4 +28,34 @@
  */
 
 ENTRY(_start)
+SECTIONS{
+      .text 0x7c00 : AT ( 0x7c00 )
+    {
+        *(.entry) ;
+        . = 0x400 ;    /*leave room for the mbr table*/
+         *(.text) ;
+
+    }
+    .rodata ALIGN(16):
+    {
+        *(.rodata)
+    }
+    .data ALIGN(16):
+    {
+        *(.data)
+    }
+    . = 0x8600 ;
+    bss_start = 0x8600 ;
+    .bss ALIGN(16):
+    {
+        *(.bss)
+    }
+    bss_end = . ;
+    mbr = 0x7dbe ;
+    /DISCARD/ :
+    {
+        *(.eh_frame)
+        *(.comment)
+    }
+}
 
