@@ -29,6 +29,8 @@ void trap_return(struct trapframe *tf);
 long handle_syscall(long number, ...);
 void handle_interrupt(int irq);
 
+
+void ioapicinit(int ioapicid);
 // Trap numbers
 // These are processor defined:
 #define T_DIVIDE     0		// divide error

@@ -351,7 +351,7 @@ pgindex_t *get_pgindex(void)
 {
 	pgindex_t *result=NULL;
 	__asm__ __volatile__ ("movl %%cr3,%%ebx;":"=ebx"(result)::"memory");
-	return postmap_addr(result);
+	return result;
 }
 
 

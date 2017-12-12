@@ -24,12 +24,15 @@
 
 #define MAX_CPU_NUM 4
 
-uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid);
+
 int nr_cpus(void);
 int cpuid(void);
 void smp_startup(void);
 /* Returns 0 when succeed */
 int handle_ipi_interrupt(unsigned int msg);
+
+void lapic_mapping(void);
+uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid);
 
 struct mp_floating_pointer_structure {
     char signature[4];
@@ -41,7 +44,7 @@ struct mp_floating_pointer_structure {
                                    // ignored and a default configuration should be loaded instead
     uint32_t features; // If bit 7 is then the IMCR is present and PIC mode is being used, otherwise 
                        // virtual wire mode is; all other bits are reserved
-};
+};__attribute__((packed));
 
 struct mp_configuration_table {
     char signature[4]; // "PCMP"
@@ -57,7 +60,7 @@ struct mp_configuration_table {
     uint16_t extended_table_length;
     uint8_t extended_table_checksum;
     uint8_t reserved;
-};
+};__attribute__((packed));
 
 struct entry_processor {
     uint8_t type; // Always 0
@@ -68,7 +71,7 @@ struct entry_processor {
     uint32_t signature;
     uint32_t feature_flags;
     uint64_t reserved;
-};
+};__attribute__((packed));
 
 struct entry_io_apic {
     uint8_t type; // Always 2
@@ -76,7 +79,7 @@ struct entry_io_apic {
     uint8_t version;
     uint8_t flags; // If bit 0 is set then the entry should be ignored
     uint32_t address; // The memory mapped address of the IO APIC is memory
-};
+};__attribute__((packed));
 
 typedef struct mp_floating_pointer_structure mp_str;
 typedef struct mp_configuration_table mpconf;

@@ -87,7 +87,8 @@ next_line:
 	trap_init();
 	do_early_initcalls();
 	do_initcalls();
-	test_console();
+	//test_console();
+	smp_startup();
 	goto panic;
 panic:
 	/*
@@ -138,6 +139,6 @@ panic:
 		"hlt;"
 		"jmp lazyloop;"
 	); can be used only after the interrupt discriptor table is all set*/
-    while(1);
+	while(1);
 }
 

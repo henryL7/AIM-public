@@ -30,6 +30,10 @@
 #define Kern_Base (0x80000000)
 #define _4MB_PAGE_SIZE (1<<22)
 #define MAP_LENGTH (0x80000000)
+
+#define LAPIC_BASE (0xfec00000)
+#define LAPIC_SIZE (_4MB_PAGE_SIZE)
+
 void arch_early_init(void)
 {
     static uint32_t gdt_table[2*gdt_num];
@@ -67,6 +71,15 @@ void arch_early_init(void)
     early_mapping_add(&entry);
     /*high address linear mapping*/
     early_mapping_add_memory(phy_base,MAP_LENGTH);
+
+    struct early_mapping entry_a = {
+      .paddr	= LAPIC_BASE,
+      .vaddr	= LAPIC_BASE,
+      .size	= (size_t)LAPIC_SIZE,
+      .type	= EARLY_MAPPING_KMMAP
+    };
+  
+    early_mapping_add(&entry_a);
     return;
 }
 
