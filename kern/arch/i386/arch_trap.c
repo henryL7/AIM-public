@@ -8,6 +8,7 @@
 #include <arch/i386/arch-io.h>
 #include <aim/panic.h>
 #include <arch/i386/asm.h>
+#include <aim/smp.h>
 #define INTER_NUM 256
 
 __attribute__((visibility("hidden")))
@@ -94,6 +95,7 @@ void trap_init()
 	void th47();
 
 	void th0x80();
+	void th0xa0();
 		
 	SETGATE(IDT[0], 0, 0x8, th0, 0);
 	SETGATE(IDT[1], 0, 0x8, th1, 0);
@@ -130,7 +132,8 @@ void trap_init()
 	SETGATE(IDT[IRQ_OFFSET+IRQ_TIMER+14], 0, 0x8, th46, 0);
 	SETGATE(IDT[IRQ_OFFSET+IRQ_TIMER+15], 0, 0x8, th47, 0);
 
-    SETGATE(IDT[0x80], 0, 0x8, th0x80, 3);
+	SETGATE(IDT[0x80], 0, 0x8, th0x80, 3);
+	SETGATE(IDT[0xa0], 0, 0x8, th0xa0, 0);
     __asm__ __volatile__ (
         "pushl %%ecx;"
         "pushw %%bx;"
@@ -153,7 +156,13 @@ void trap(struct trapframe *tf)
     {
         tf->eax=handle_syscall(tf->eax,tf->ebx,tf->ecx,tf->edx,tf->esi,tf->edi,tf->ebp);
     }
-    else
+	else if(tf->trapno==0xa0)
+	{   
+		int cpu_id=cpuid();
+		kprintf("panic cpu:%d\n",cpu_id);
+		while(1);
+	}
+	else
     panic("abort from interrupt\n");
     return;
 }
@@ -182,4 +191,19 @@ void trap_test1()
 		"int $0x80;"
 	);
     return;
+}
+
+void other_trap_init()
+{
+	__asm__ __volatile__ (
+        "pushl %%ecx;"
+        "pushw %%bx;"
+        "lidtl (%%esp);"
+        "popw %%bx;"
+        "popl %%ebx;"
+        "sti;"
+        ::"bx"(INTER_NUM*8),"ecx"(IDT):"memory"
+	  );
+	trap_test1();
+	return; 
 }

@@ -23,6 +23,8 @@ struct trapframe;
 
 void trap_init(void);
 
+void other_trap_init(void);
+
 __noreturn
 void trap_return(struct trapframe *tf);
 
@@ -56,6 +58,8 @@ void ioapicinit(int ioapicid);
 
 
 #define T_SYSCALL   0x80		// system call
+
+#define T_IPI       0xa0
 
 #define IRQ_OFFSET	32	// IRQ 0 corresponds to int IRQ_OFFSET
 

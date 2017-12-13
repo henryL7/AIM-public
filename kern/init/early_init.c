@@ -89,6 +89,7 @@ next_line:
 	do_initcalls();
 	//test_console();
 	smp_startup();
+	panic("master panic\n");
 	goto panic;
 panic:
 	/*

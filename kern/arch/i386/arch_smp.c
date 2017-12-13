@@ -93,6 +93,9 @@ struct mp_configuration_table* find_mpconf(mp_str* mp)
     return conf;
 }
 
+static int global_cpus[MAX_CPU_NUM];
+static uint32_t global_cpunms;
+
 uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid)
 {
     uint8_t *p, *e;
@@ -113,6 +116,7 @@ uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid)
           proc = (struct entry_processor*)p;
           if(ncpu < MAX_CPU_NUM) {
             cpus[ncpu]= proc->local_apic_id;  // apicid may differ from ncpu
+            global_cpus[ncpu]=proc->local_apic_id;
             ncpu++;
           }
           p += sizeof(struct entry_processor);
@@ -135,6 +139,7 @@ uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid)
     if(!ismp)
         panic("Didn't find a suitable machine");
     *cpu_id=cpus;
+    global_cpunms=ncpu;
     return ncpu;
     /*
       if(uint8_t(mp->features)){
@@ -205,12 +210,17 @@ void lapic_mapping(void)
 
 int cpuid(void)
 {
-  return (int)lapic[ID];
+  return ((int)lapic[ID])>>24;
 }
+
+static volatile uint32_t cpu_status[MAX_CPU_NUM]={0};
 
 void other_init(void)
 {
-  uint32_t cpu_id=cpuid();
+  int cpu_id=cpuid();
+  lapicinit();
+  other_trap_init();
+  cpu_status[cpu_id]=1;
   kprintf("cpu No.0x%x awake.\n",cpu_id);
   while(1);
 }
@@ -228,9 +238,7 @@ void lapicinit(void)
   // Disable logical interrupt lines.
   lapicw(LINT0, MASKED);
   lapicw(LINT1, MASKED);
-
-  // Map error interrupt to IRQ_ERROR.
-  lapicw(ERROR, 32 + IRQ_ERROR);
+  lapicw(ERROR, MASKED);
 
   // Clear error status register (requires back-to-back writes).
   lapicw(ESR, 0);
@@ -251,12 +259,12 @@ void lapicinit(void)
 
 void smp_startup(void)
 {
-  uint32_t cpu_id=cpuid();
+  int cpu_id=cpuid();
   uint32_t* cpuids=NULL;
   uint32_t io_apicid=NULL;
   uint32_t cpu_nums=find_smp(&cpuids,&io_apicid);
-  //ioapicinit(io_apicid);
-  //lapicinit();
+  ioapicinit(io_apicid);
+  lapicinit();
   uint32_t code_addr=0x8000;
   for(char* src=_otherstart,*dst=code_addr;src<=_otherend;src++,dst++)
     *(dst)=*(src);
@@ -269,7 +277,21 @@ void smp_startup(void)
     if(cpuids[i]==cpu_id)
       continue;
     lapicstartap(cpuids[i],code_addr);
+    while(cpu_status[cpuids[i]]==0);
   }
   kprintf("master leave\n");
   return;
+}
+
+void panic_other_cpus(void)
+{
+  int cpu_id=cpuid();
+  for(int i=0;i<global_cpunms;i++)
+  {
+    if(global_cpus[i]==cpu_id)
+      continue;
+    lapicw(ICRHI, global_cpus[i]<<24);
+    lapicw(ICRLO, FIXED | ASSERT | T_IPI);
+    microdelay(200);
+  }
 }
