@@ -273,6 +273,7 @@ void smp_startup(void)
     *(dst)=*(src);
   *(uint32_t*)(code_addr-4)=other_init;
   uint32_t stack=(uint32_t)kmalloc(PAGE_SIZE / 2,0);
+  stack+=(uint32_t)PAGE_SIZE / 2;
   *(uint32_t*)(code_addr-12)=stack;
   *(uint32_t*)(code_addr-8)=(uint32_t)get_pgindex();
   kprintf("master cpu id:0x%x\n",cpu_id);
