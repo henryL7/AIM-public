@@ -22,17 +22,17 @@
 
 #ifndef __ASSEMBLER__
 
-#define MAX_CPU_NUM 4
+#define MAX_CPU_NUM 12
 
 
 int nr_cpus(void);
-int cpuid(void);
+uint8_t cpuid(void);
 void smp_startup(void);
 /* Returns 0 when succeed */
 int handle_ipi_interrupt(unsigned int msg);
 
 void lapic_mapping(void);
-uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid);
+uint32_t find_smp(uint8_t** cpu_id,uint32_t* io_apicid);
 
 struct mp_floating_pointer_structure {
     char signature[4];

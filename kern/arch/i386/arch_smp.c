@@ -49,6 +49,7 @@
 
 #define LAPIC_BASE (0xfee00000)
 #define LAPIC_SIZE (0x1000)
+#define SHIFT_LEFT ((uint32_t)(1<<24))
 
 struct mp_floating_pointer_structure* mpsearch1(uint32_t a, int len)
 {
@@ -93,10 +94,10 @@ struct mp_configuration_table* find_mpconf(mp_str* mp)
     return conf;
 }
 
-static int global_cpus[MAX_CPU_NUM];
+static uint8_t global_cpus[MAX_CPU_NUM];
 static uint32_t global_cpunms;
 
-uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid)
+uint32_t find_smp(uint8_t** cpu_id,uint32_t* io_apicid)
 {
     uint8_t *p, *e;
     int ismp=1;
@@ -107,7 +108,7 @@ uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid)
     mp=find_mptable();
     conf=find_mpconf(mp);
     kprintf("Lapic address:0x%x\n",conf->lapic_address);
-    uint32_t* cpus=kmalloc(sizeof(uint32_t)*MAX_CPU_NUM,0);
+    uint8_t* cpus=kmalloc(sizeof(uint8_t)*MAX_CPU_NUM,0);
     uint32_t ncpu=0;
     for(p=(uint8_t*)(conf+1), e=(uint8_t*)conf+conf->length; p<e; )
     {
@@ -115,6 +116,7 @@ uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid)
         case MPPROC:
           proc = (struct entry_processor*)p;
           if(ncpu < MAX_CPU_NUM) {
+            kprintf("apicid:0x%x\n",proc->local_apic_id);
             cpus[ncpu]= proc->local_apic_id;  // apicid may differ from ncpu
             global_cpus[ncpu]=proc->local_apic_id;
             ncpu++;
@@ -151,7 +153,7 @@ uint32_t find_smp(uint32_t** cpu_id,uint32_t* io_apicid)
     */
 }
 
-static uint32_t* lapic=(uint32_t*)(LAPIC_BASE);
+static int* lapic=(int*)(LAPIC_BASE);
 
 void lapicw(int index, int value)
 {
@@ -161,9 +163,11 @@ void lapicw(int index, int value)
 
 void microdelay(uint32_t time)
 {
-    for(uint32_t i=0;i<time*100;i++)
-      if(i%100==0&&i%10000==0)
-        kprintf("%d s passing\n",i/100);
+    kprintf("delay %d ms\n",time);
+    for(volatile uint32_t i=0;i<time*20000;i+=2)
+      if(i%2==1)
+        break;
+        //kprintf("%d s passing\n",(i+1)/10000);
     return;
 }
 
@@ -175,7 +179,6 @@ void lapicstartap(uint8_t apicid, uint32_t addr)
   outb(CMOS_PORT, 0xF);  
   outb(CMOS_PORT+1, 0x0A);
   wrv = (uint16_t*)pa2kva((0x40<<4 | 0x67));  // Warm reset vector
-  kprintf("wrv:0x%x,addr:0x%x",(uint32_t)wrv,(uint16_t)addr>>4);
   wrv[0] = 0;
   wrv[1] = (uint16_t)(addr >> 4);
 
@@ -192,7 +195,7 @@ void lapicstartap(uint8_t apicid, uint32_t addr)
     lapicw(ICRLO, STARTUP | (addr>>12));
     microdelay(200);
   }
-  kprintf("waking up cpu:%d\n",(int)apicid);
+  kprintf("waking up cpu:0x%x\n",apicid);
 }
 
 void lapic_mapping(void)
@@ -208,20 +211,20 @@ void lapic_mapping(void)
 		panic("fail to mapping lapic");
 }
 
-int cpuid(void)
+uint8_t cpuid(void)
 {
-  return ((int)lapic[ID])>>24;
+  return (uint8_t)(lapic[ID]>>24);
 }
 
-static volatile uint32_t cpu_status[MAX_CPU_NUM]={0};
+static volatile uint32_t cpu_status[MAX_CPU_NUM]={0,0,0,0,0,0,0,0,0,0,0,0};
 
 void other_init(void)
 {
-  int cpu_id=cpuid();
+  uint8_t cpu_id=cpuid();
   lapicinit();
   other_trap_init();
-  cpu_status[cpu_id]=1;
   kprintf("cpu No.0x%x awake.\n",cpu_id);
+  cpu_status[cpu_id]=1;
   while(1);
 }
 extern char _otherstart[],_otherend[];
@@ -259,8 +262,8 @@ void lapicinit(void)
 
 void smp_startup(void)
 {
-  int cpu_id=cpuid();
-  uint32_t* cpuids=NULL;
+  uint8_t cpu_id=cpuid();
+  uint8_t* cpuids=NULL;
   uint32_t io_apicid=NULL;
   uint32_t cpu_nums=find_smp(&cpuids,&io_apicid);
   ioapicinit(io_apicid);
@@ -272,20 +275,25 @@ void smp_startup(void)
   uint32_t stack=(uint32_t)kmalloc(PAGE_SIZE / 2,0);
   *(uint32_t*)(code_addr-12)=stack;
   *(uint32_t*)(code_addr-8)=(uint32_t)get_pgindex();
-  for(int i=0;i<cpu_nums;i++)
+  kprintf("master cpu id:0x%x\n",cpu_id);
+  kprintf("cpu nums:%d\n",cpu_nums);
+  for(uint32_t i=0;i<cpu_nums;i++)
   {
-    if(cpuids[i]==cpu_id)
+    kprintf("prepare cpu:0x%x\n",global_cpus[i]);
+    if(global_cpus[i]==cpu_id)
       continue;
-    lapicstartap(cpuids[i],code_addr);
-    while(cpu_status[cpuids[i]]==0);
+    lapicstartap(global_cpus[i],code_addr);
+    kprintf("waiting for cpu:0x%x\n",global_cpus[i]);
+    while(cpu_status[global_cpus[i]]==0);
   }
+  microdelay(2000);
   kprintf("master leave\n");
   return;
 }
 
 void panic_other_cpus(void)
 {
-  int cpu_id=cpuid();
+  uint8_t cpu_id=cpuid();
   for(int i=0;i<global_cpunms;i++)
   {
     if(global_cpus[i]==cpu_id)
@@ -294,4 +302,6 @@ void panic_other_cpus(void)
     lapicw(ICRLO, FIXED | ASSERT | T_IPI);
     microdelay(200);
   }
+  set_mp();
+  return;
 }

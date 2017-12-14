@@ -158,8 +158,8 @@ void trap(struct trapframe *tf)
     }
 	else if(tf->trapno==0xa0)
 	{   
-		int cpu_id=cpuid();
-		kprintf("panic cpu:%d\n",cpu_id);
+		uint8_t cpu_id=cpuid();
+		kprintf("panic cpu:0x%x\n",cpu_id);
 		while(1);
 	}
 	else
