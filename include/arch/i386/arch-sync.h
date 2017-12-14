@@ -84,10 +84,15 @@ void semaphore_init(semaphore_t *sem, int val)
 static inline
 void semaphore_dec(semaphore_t *sem)
 {
-	spin_lock(&(sem->lock));
-	if(sem->val>0)
-		sem->val-=1;
-	spin_unlock(&(sem->lock));
+	bool success=0;
+	while(!success)
+	{
+		spin_lock(&(sem->lock));
+		if(sem->val>0)
+			sem->val-=1;
+			success=1;
+		spin_unlock(&(sem->lock));
+	}
 	return;
 }
 
