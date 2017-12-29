@@ -35,7 +35,7 @@
 #include <aim/mmu.h>
 #include <aim/panic.h>
 #include <errno.h>
-
+#include <aim/initcalls.h>
 #include <io-mem.h>
 
 static int __read8(struct bus_device *inst, addr_t base, addr_t offset,
@@ -129,7 +129,7 @@ int io_mem_init(struct bus_device *memory_bus)
 #ifndef RAW
 
 #define DEVICE_MODEL	"io-mem"
-#if 0
+
 static struct bus_driver drv;
 
 static int __new(struct devtree_entry *entry)
@@ -157,6 +157,6 @@ static int __driver_init(void)
 	return 0;
 }
 INITCALL_DRIVER(__driver_init);
-#endif /* 0 */
+ /* 0 */
 #endif /* !RAW */
 

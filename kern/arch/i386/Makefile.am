@@ -29,13 +29,24 @@ noinst_LTLIBRARIES = \
 	libarch.la
 
 libentry_la_SOURCES = \
-	entry.S
+	entry.S \
+	trap.S \
+	otherinit.S
 
 libarch_la_SOURCES = \
 	arch_early_init.c \
 	arch_mmu.c \
+<<<<<<< HEAD
 	proc.c \
 	switch.S
+=======
+    arch_trap.c \
+	arch_smp.c \
+	arch_ioapic.c
+
+>>>>>>> lab5
 libarch_la_LIBADD = \
 	mach-$(MACH)/libmach.la
+	
+	
 

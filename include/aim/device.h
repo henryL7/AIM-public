@@ -64,7 +64,7 @@ struct chr_driver {
 	 * These methods are intended for internal use.  They should not
 	 * be invoked outside the driver framework.
 	 */
-	int (*getc)(dev_t dev);
+	unsigned char (*getc)(dev_t dev);
 	int (*putc)(dev_t dev, int c);
 };
 

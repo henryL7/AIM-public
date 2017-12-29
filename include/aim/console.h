@@ -39,7 +39,7 @@ int early_console_init(struct bus_device *bus, addr_t base, int type);
  * address spaces.
  */
 void set_console(putchar_fp putchar, puts_fp puts);
-
+void set_mp(void);
 
 /* kernel console output routines
  * these will work in both address spaces.
