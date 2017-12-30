@@ -23,6 +23,7 @@
 #include <aim/namespace.h>
 #include <aim/uvm.h>
 #include <context.h>
+#include <arch/i386/arch-trap.h>
 //#include <list.h>
 //#include <file.h>
 
@@ -151,6 +152,8 @@ void proc_trap_return(struct proc *proc);
  * Process tree maintenance
  */
 void proctree_add_child(struct proc *child, struct proc *parent);
+
+void switch_test(void);
 
 #endif /* _PROC_H */
 

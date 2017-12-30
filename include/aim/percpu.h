@@ -34,7 +34,8 @@ struct percpu {
 	/* other stuff go here */
 };
 
-extern struct percpu cpus[];
+/*extern struct percpu cpus[];*/
+struct percpu cpus[0];
 /* Idle proc is per-cpu dummy process here. */
 extern struct proc idleproc[];
 

@@ -26,7 +26,7 @@
 #include <aim/mmu.h>
 
 #define phy_base (0)
-#define gdt_num (3)
+#define gdt_num (5)
 #define Kern_Base (0x80000000)
 #define _4MB_PAGE_SIZE (1<<22)
 #define MAP_LENGTH (0x80000000)
@@ -43,6 +43,10 @@ void arch_early_init(void)
     gdt_table[3]=0xcf9a00;
     gdt_table[4]=0xffff;
     gdt_table[5]=0xcf9200;
+    gdt_table[6]=0xffff;
+    gdt_table[7]=0xcffa00;
+    gdt_table[8]=0xffff;
+    gdt_table[9]=0xcff200;
     __asm__ __volatile__ (
       "pushl %%ecx;"
       "pushw %%bx;"
