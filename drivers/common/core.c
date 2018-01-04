@@ -31,6 +31,7 @@
 //#include <aim/sync.h>
 #include <aim/vmm.h>
 #include <errno.h>
+#include <util.h>
 
 /* drivers with associated major number */
 struct driver *devsw[MAJOR_MAX];

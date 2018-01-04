@@ -178,3 +178,67 @@ void idle_init(void)
 	cpu_idleproc->kpid = 0;
 }
 
+struct mm *kernel_mm;
+
+struct proc *oldproc;
+
+void khello_world()
+{
+	kprintf("kernel hello world\n");
+	switch_context(oldproc);
+	return;
+}
+
+void uhello_world(void)
+{
+	while(1);
+	return;
+}
+
+void init_user_pgindex(pgindex_t*index)
+{
+	pgindex_t *kindex=get_pgindex();
+	pde_t entry_base=0x187;        //binary:  0000 0001 1000 0111
+	for(uint32_t i=0;i<1024;i++)
+	{
+		if(i<512)
+			index[i]=kindex[i]^entry_base;
+		else
+			index[i]=kindex[i];
+	}
+	return;
+}
+
+void switch_test(void)
+{
+	kernel_mm=kmalloc(sizeof(struct mm),0);
+	kernel_mm->pgindex=get_pgindex();
+	idle_init();
+	struct proc *new_proc=proc_new(NULL);
+	/*new_proc->kstack=premap_addr(new_proc->kstack);*/
+	void* stacktop=new_proc->kstack+new_proc->kstack_size-sizeof(struct trapframe);
+	new_proc->mm=kmalloc(sizeof(struct mm),0);
+	new_proc->mm->pgindex=pgalloc();
+	init_user_pgindex(new_proc->mm->pgindex);
+	proc_usetup(new_proc,premap_addr(uhello_world),stacktop,NULL);
+	switch_context(new_proc);
+	kprintf("back to kernel\n");
+	return;
+}
+
+void switch_test_1(void)
+{
+	kernel_mm=kmalloc(sizeof(struct mm),0);
+	kernel_mm->pgindex=get_pgindex();
+	idle_init();
+	oldproc=current_proc;
+	struct proc *new_proc=proc_new(NULL);
+	/*new_proc->kstack=premap_addr(new_proc->kstack);*/
+	void* stacktop=new_proc->kstack+new_proc->kstack_size-sizeof(struct trapframe);
+	new_proc->mm=kmalloc(sizeof(struct mm),0);
+	new_proc->mm->pgindex=get_pgindex();
+	proc_ksetup(new_proc,khello_world,NULL);
+	switch_context(new_proc);
+	kprintf("back to kernel\n");
+	return;
+}

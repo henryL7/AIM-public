@@ -23,3 +23,23 @@
 .text
 switch_regs:
 
+  movl 4(%esp), %eax
+  movl 8(%esp), %edx
+
+/* save */
+
+  movl %edi,(%eax)
+  movl %esi,4(%eax)
+  movl %ebx,8(%eax)
+  movl %ebp,12(%eax)
+  movl %esp,16(%eax)
+
+/* load */
+  movl (%edx),%edi
+  movl 4(%edx),%esi
+  movl 8(%edx),%ebx
+  movl 12(%edx),%ebp
+  movl 16(%edx),%esp
+  ret
+
+

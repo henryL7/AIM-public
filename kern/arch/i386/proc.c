@@ -28,7 +28,17 @@
 #include <arch-trap.h>
 #include <context.h>
 
-extern void forkret(void);
+#define SYS_CS (uint16_t)(1<<3)
+#define SYS_DS (uint16_t)(2<<3)
+#define USER_CS (uint16_t)((3<<3)|3)
+#define USER_DS (uint16_t)((4<<3)|3)
+
+void forkret(void)
+{
+	proc_trap_return(current_proc);
+	return;
+}
+
 extern void switch_regs(struct context *old, struct context *new);
 
 static struct trapframe *__proc_trapframe(struct proc *proc)
@@ -39,25 +49,45 @@ static struct trapframe *__proc_trapframe(struct proc *proc)
 	return tf;
 }
 
+
 static void __bootstrap_trapframe(struct trapframe *tf,
 				   void *entry,
 				   void *stacktop,
 				   void *args)
 {
+	tf->cs=SYS_CS;
+	tf->ds=SYS_DS;
+	tf->gs=SYS_DS;
+	tf->fs=SYS_DS;
+	tf->es=SYS_DS;
+	tf->eip=entry;
+	tf->esp=stacktop;
+	tf->ebp=tf->esp;
+	*((uint32_t*)tf->esp)=forkret;
+	tf->eflags=0x200;
 }
 
 static void __bootstrap_context(struct context *context, struct trapframe *tf)
 {
+	context->esp=tf->esp;
 }
 
 static void __bootstrap_user(struct trapframe *tf)
 {
+	tf->esp=premap_addr(tf->esp);
+	tf->ebp=tf->esp;
+	tf->cs=USER_CS;
+	tf->ds=USER_DS;
+	tf->gs=USER_DS;
+	tf->fs=USER_DS;
+	tf->es=USER_DS;
+	tf->ss=USER_DS;
 }
 
 void __proc_ksetup(struct proc *proc, void *entry, void *args)
 {
 	struct trapframe *tf = __proc_trapframe(proc);
-	__bootstrap_trapframe(tf, entry, kstacktop(proc), args);
+	__bootstrap_trapframe(tf, entry, kstacktop(proc)-sizeof(struct trapframe), args);
 	__bootstrap_context(&(proc->context), tf);
 }
 

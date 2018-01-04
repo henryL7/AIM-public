@@ -20,6 +20,7 @@
 #ifndef _DRIVERS_SERIAL_UART_NS16550_H
 #define _DRIVERS_SERIAL_UART_NS16550_H
 
+void test_console(void);
 #ifdef RAW /* baremetal driver */
 
 #else /* not RAW, or kernel driver */
