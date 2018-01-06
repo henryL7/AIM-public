@@ -9,3 +9,28 @@ int memcmp(const void *cs, const void *ct, size_t count)
             break;
     return res;
 }
+
+void* memmove(void* dst,const void* src,size_t count)
+{
+    char* tmpdst = (char*)dst;
+    char* tmpsrc = (char*)src;
+
+    if (tmpdst <= tmpsrc || tmpdst >= tmpsrc + count)
+    {
+        while(count--)
+        {
+            *tmpdst++ = *tmpsrc++; 
+        }
+    }
+    else
+    {
+        tmpdst = tmpdst + count - 1;
+        tmpsrc = tmpsrc + count - 1;
+        while(count--)
+        {
+            *tmpdst-- = *tmpsrc--;
+        }
+    }
+
+    return dst; 
+}

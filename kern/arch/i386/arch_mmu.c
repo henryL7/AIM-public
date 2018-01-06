@@ -354,5 +354,9 @@ pgindex_t *get_pgindex(void)
 	return result;
 }
 
+void *uva2kva(pgindex_t *pgindex, void *uaddr)
+{
+	return uaddr;
+}
 
 

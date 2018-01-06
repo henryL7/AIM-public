@@ -29,11 +29,12 @@
 #include <aim/percpu.h>
 #include <aim/vmm.h>
 #include <aim/proc.h>
-//#include <aim/sched.h>
+#include <aim/sched.h>
 #include <aim/smp.h>
 //#include <aim/sync.h>
 #include <aim/uvm.h>
 #include <bitmap.h>
+
 
 static struct {
 	//lock_t lock;

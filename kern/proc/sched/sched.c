@@ -28,9 +28,13 @@
 #include <aim/proc.h>
 #include <aim/sched.h>
 #include <aim/smp.h>
+#include <aim/vmm.h>
+#include <aim/initcalls.h>
 
-//static lock_t sched_lock;
-//static unsigned long __sched_intrflags;
+static lock_t sched_lock;
+static unsigned long __sched_intrflags;
+
+struct scheduler *scheduler;
 
 void sched_enter_critical(void)
 {
@@ -55,14 +59,18 @@ void schedule(void)
 	sched_enter_critical();
 
 	assert(!((oldproc->kpid == 0) ^ (oldproc == cpu_idleproc)));
-	if (oldproc->state == PS_ONPROC)
-		oldproc->state = PS_RUNNABLE;
+	
 
 	newproc = scheduler->pick();
+
+	if (oldproc->state == PS_ONPROC)
+	oldproc->state = PS_RUNNABLE;
 	if (newproc == NULL)
 		newproc = cpu_idleproc;
 
 	__update_proc(newproc);
+
+	kprintf("switch to kpid:%d\n",newproc->kpid);
 
 	switch_context(newproc);
 
@@ -142,6 +150,118 @@ struct proc *proc_next(struct proc *proc)
 
 void sched_init(void)
 {
-	//spinlock_init(&sched_lock);
+	spinlock_init(&sched_lock);
 }
 
+static int __sched__add(struct proc * p)
+{
+    struct proc* now;
+    for(now=scheduler->start;now->first_child!=NULL;now=now->first_child);
+    now->first_child=p;
+    p->parent=now;
+    return 0;
+}
+
+static int __sched__remove(struct proc* p)
+{
+    if(p->first_child!=NULL)
+        p->first_child->parent=p->parent;
+    p->parent->first_child=p->first_child;
+    return 0;
+}
+
+static struct proc* __sched__next(struct proc *p)
+{
+    return p->first_child;
+}
+
+static struct proc* __sched__find(pid_t pid, struct namespace *ns)
+{
+    struct proc* now;
+    for(now=scheduler->start->first_child;now!=NULL;now=now->first_child)
+    {
+        if(now->pid==pid)
+            break;
+    }
+    return now;
+}
+
+static struct proc* __sched__pick(void)
+{
+	struct proc* p;
+    for(p=scheduler->running->first_child;p!=NULL;p=p->first_child)
+    {
+        if(p->state==PS_RUNNABLE)
+        {
+			scheduler->running=p;
+			return p;
+        }
+	}
+	for(p=scheduler->start->first_child;p!=NULL;p=p->first_child)
+	{
+		if(p->state==PS_RUNNABLE)
+        {
+			scheduler->running=p;
+			return p;
+        }
+	}
+	scheduler->running=scheduler->start;
+	return NULL;
+}
+
+void scheduler_init(void)
+{
+	scheduler=kmalloc(sizeof(struct scheduler),0);
+	scheduler->start=kmalloc(sizeof(struct proc),0);
+	scheduler->start->first_child=NULL;
+	kprintf("scheduler init\n");
+	scheduler->running=scheduler->start;
+	scheduler->pick=__sched__pick;
+	scheduler->add=__sched__add;
+	scheduler->remove=__sched__remove;
+	scheduler->next=__sched__next;
+	scheduler->find=__sched__find;
+	return;
+}
+
+INITCALL_SCHED(scheduler_init);
+
+void kslave(void)
+{
+	while(1)
+	{
+		kprintf("slave\n");
+		schedule();
+	}
+	return;
+}
+void sche_test(void)
+{
+	sched_init();
+	kernel_mm=kmalloc(sizeof(struct mm),0);
+	kernel_mm->pgindex=get_pgindex();
+	//idle_init();
+	struct proc *curr_proc=proc_new(NULL);
+	curr_proc->mm=kernel_mm;
+	curr_proc->kpid=1;
+	curr_proc->state=PS_ONPROC;
+	curr_proc->first_child=NULL;
+	curr_proc->oncpu=cpuid();
+	current_proc=curr_proc;
+	proc_add(curr_proc);
+	struct proc *new_proc=proc_new(NULL);
+	/*new_proc->kstack=premap_addr(new_proc->kstack);*/
+	void* stacktop=new_proc->kstack+new_proc->kstack_size-sizeof(struct trapframe);
+	new_proc->mm=kmalloc(sizeof(struct mm),0);
+	new_proc->mm->pgindex=get_pgindex();
+	new_proc->first_child=NULL;
+	new_proc->kpid=2;
+	proc_ksetup(new_proc,kslave,NULL);
+	new_proc->state=PS_RUNNABLE;
+	proc_add(new_proc);
+	while(1)
+	{
+		kprintf("master\n");
+		schedule();
+	}
+}

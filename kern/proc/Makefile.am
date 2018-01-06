@@ -28,3 +28,6 @@ libproc_la_SOURCES = \
 	proctree.c \
 	namespace.c
 
+libproc_la_LIBADD = \
+	sched/sched.lo
+

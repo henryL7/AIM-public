@@ -36,6 +36,7 @@
 #include <aim/initcalls.h>
 #include <drivers/serial/uart-ns16550.h>
 #include <aim/proc.h>
+#include <aim/sched.h>
 
 #define _4MB_PAGE_SIZE (1<<22)
 static inline
@@ -90,7 +91,8 @@ next_line:
 	do_initcalls();
 	//test_console();
 	smp_startup();
-	switch_test_1();
+	//switch_test_1();
+	sche_test();
 	panic("master panic\n");
 	goto panic;
 panic:

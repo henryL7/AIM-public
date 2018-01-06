@@ -53,6 +53,9 @@ struct scheduler {
 	 * Currently @ns should be always NULL.
 	 */
 	struct proc *	(*find)(pid_t pid, struct namespace *ns);
+
+	struct proc* start;
+	struct proc* running;
 };
 
 extern struct scheduler *scheduler;
@@ -71,6 +74,9 @@ struct proc *proc_next(struct proc *proc);
 void sleep(void *bed);
 void sleep_with_lock(void *bed, lock_t *lock);
 void wakeup(void *bed);
+
+
+void sche_test(void);
 
 #endif
 
