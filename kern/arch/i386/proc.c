@@ -27,14 +27,19 @@
 #include <aim/trap.h>
 #include <arch-trap.h>
 #include <context.h>
+#include <aim/sync.h>
 
 #define SYS_CS (uint16_t)(1<<3)
 #define SYS_DS (uint16_t)(2<<3)
 #define USER_CS (uint16_t)((3<<3)|3)
 #define USER_DS (uint16_t)((4<<3)|3)
 
+extern lock_t sched_lock;
+extern unsigned long __sched_intrflags;
+
 void forkret(void)
 {
+	spin_unlock_irq_restore(&sched_lock, __sched_intrflags);
 	proc_trap_return(current_proc);
 	return;
 }

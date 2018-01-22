@@ -31,19 +31,25 @@
 #include <aim/vmm.h>
 #include <aim/initcalls.h>
 
-static lock_t sched_lock;
-static unsigned long __sched_intrflags;
+#define AP_NUM 1
+lock_t sched_lock;
+unsigned long __sched_intrflags;
+volatile int mp_start_flag=0;
+volatile int bsp_start_flag=0;
+int count=3;
+lock_t count_lock;
+semaphore_t mp_prepared;
 
 struct scheduler *scheduler;
 
 void sched_enter_critical(void)
 {
-	//spin_lock_irq_save(&sched_lock, __sched_intrflags);
+	spin_lock_irq_save(&sched_lock, __sched_intrflags);
 }
 
 void sched_exit_critical(void)
 {
-	//spin_unlock_irq_restore(&sched_lock, __sched_intrflags);
+	spin_unlock_irq_restore(&sched_lock, __sched_intrflags);
 }
 
 static void __update_proc(struct proc *proc)
@@ -151,6 +157,7 @@ struct proc *proc_next(struct proc *proc)
 void sched_init(void)
 {
 	spinlock_init(&sched_lock);
+	spinlock_init(&count_lock);
 }
 
 static int __sched__add(struct proc * p)
@@ -228,13 +235,16 @@ INITCALL_SCHED(scheduler_init);
 
 void kslave(void)
 {
+	kprintf("start\n");
 	while(1)
 	{
 		kprintf("slave\n");
+		kprintf("oncpu:0x%x\n",cpuid());
 		schedule();
 	}
 	return;
 }
+
 void sche_test(void)
 {
 	sched_init();
@@ -259,9 +269,56 @@ void sche_test(void)
 	proc_ksetup(new_proc,kslave,NULL);
 	new_proc->state=PS_RUNNABLE;
 	proc_add(new_proc);
+	semaphore_init(&mp_prepared,-AP_NUM+1);
+	mp_start_flag=1;
+	semaphore_dec(&mp_prepared);
+	bsp_start_flag=1;
+	kprintf("bsp start\n");
 	while(1)
 	{
-		kprintf("master\n");
+		kprintf("main\n");
+		kprintf("oncpu:0x%x\n",cpuid());
+		schedule();
+	}
+}
+
+void mp_start_schd(void)
+{
+	while(mp_start_flag!=1)
+	{
+		//kprintf("ap waiting\n");
+	}
+	spin_lock_irq_save(&count_lock, __sched_intrflags);
+	kernel_mm=kmalloc(sizeof(struct mm),0);
+	kernel_mm->pgindex=get_pgindex();
+	struct proc *curr_proc=proc_new(NULL);
+	curr_proc->mm=kernel_mm;
+	curr_proc->kpid=count++;
+	curr_proc->state=PS_ONPROC;
+	curr_proc->first_child=NULL;
+	curr_proc->oncpu=cpuid();
+	current_proc=curr_proc;
+	proc_add(curr_proc);
+	struct proc *new_proc=proc_new(NULL);
+	void* stacktop=new_proc->kstack+new_proc->kstack_size-sizeof(struct trapframe);
+	new_proc->mm=kmalloc(sizeof(struct mm),0);
+	new_proc->mm->pgindex=get_pgindex();
+	new_proc->first_child=NULL;
+	new_proc->kpid=count++;
+	proc_ksetup(new_proc,kslave,NULL);
+	new_proc->state=PS_RUNNABLE;
+	proc_add(new_proc);
+	spin_unlock_irq_restore(&count_lock, __sched_intrflags);
+	semaphore_inc(&mp_prepared);
+	while(bsp_start_flag!=1)
+	{
+		//kprintf("ap waiting\n");
+	}
+	kprintf("ap start\n");
+	while(1)
+	{
+		kprintf("main\n");
+		kprintf("oncpu:0x%x\n",cpuid());
 		schedule();
 	}
 }

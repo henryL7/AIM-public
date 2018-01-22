@@ -77,6 +77,7 @@ void wakeup(void *bed);
 
 
 void sche_test(void);
+void mp_start_schd(void);
 
 #endif
 

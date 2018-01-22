@@ -65,6 +65,8 @@ void set_mp()
 
 int kprintf(const char *fmt, ...)
 {
+	if(is_mp)
+	spin_lock_irq_save(&__lock, flags);
 	int result;
 	char printf_buf[BUFSIZ];
 	va_list ap;
@@ -72,6 +74,8 @@ int kprintf(const char *fmt, ...)
 	result = vsnprintf(printf_buf, BUFSIZ, fmt, ap);
 	va_end(ap);
 	kputs(printf_buf);
+	if(is_mp)
+	spin_unlock_irq_restore(&__lock, flags);
 	return result;
 }
 
@@ -110,11 +114,9 @@ int kputs(const char *s)
 		return EOF;
 	/* We probably don't want kputs() to be interrupted externally or by another
 	 * core. */
-	if(is_mp)
-	spin_lock_irq_save(&__lock, flags);
+	
 	result = __puts(s);
-	if(is_mp)
-	spin_unlock_irq_restore(&__lock, flags);
+	
 
 	return result;
 }

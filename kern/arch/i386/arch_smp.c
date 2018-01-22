@@ -12,6 +12,7 @@
 #include <aim/early_kmmap.h>
 #include <aim/console.h>
 #include <aim/trap.h>
+#include <aim/sched.h>
 /* based on the impletation from xv6 */
 
 
@@ -225,6 +226,7 @@ void other_init(void)
   other_trap_init();
   kprintf("cpu No.0x%x awake.\n",cpu_id);
   cpu_status[cpu_id]=1;
+  mp_start_schd();
   while(1);
 }
 extern char _otherstart[],_otherend[];
@@ -289,6 +291,7 @@ void smp_startup(void)
   }
   microdelay(2000);
   kprintf("master leave\n");
+  set_mp();
   return;
 }
 
